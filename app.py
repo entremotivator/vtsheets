@@ -1757,7 +1757,7 @@ def display_settings_tab():
             get_timesheet_dataframe.clear() # Clear relevant caches
             calculate_employee_performance_metrics.clear()
             get_timesheets_for_month_display.clear()
-            st.experimental_rerun()
+            st.rerun()
     
     st.markdown("<h3 class=\'subsection-header\'>Cache Management</h3>", unsafe_allow_html=True)
     if st.button("Clear All App Caches", key="clear_all_caches_btn"):
