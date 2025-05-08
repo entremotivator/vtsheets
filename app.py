@@ -12,16 +12,29 @@ import io
 import json
 import os
 import time
-import random
+import requests
+from requests.exceptions import RequestException
+import hashlib
+import hmac
+import re
+import urllib.parse
 from PIL import Image
 import altair as alt
 from streamlit_calendar import calendar
 from streamlit_option_menu import option_menu
+from streamlit_lottie import st_lottie
+from streamlit_extras.colored_header import colored_header
+from streamlit_extras.metric_cards import style_metric_cards
+from streamlit_extras.chart_container import chart_container
+from streamlit_extras.stateful_button import button
+from streamlit_extras.switch_page_button import switch_page
+from streamlit_extras.add_vertical_space import add_vertical_space
+from streamlit_extras.customize_running import center_running
 
 # Set page configuration
 st.set_page_config(
-    page_title="TSheets CRM Manager",
-    page_icon="📊",
+    page_title="TSheets CRM Manager Pro",
+    page_icon="⏱️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -35,6 +48,7 @@ st.markdown("""
     .block-container {
         padding-top: 1rem;
         padding-bottom: 0rem;
+        max-width: 95%;
     }
     h1, h2, h3 {
         margin-top: 0.5rem;
@@ -66,13 +80,6 @@ st.markdown("""
         color: white;
         border: none;
     }
-    .reportview-container .main .block-container {
-        max-width: 1200px;
-        padding-top: 2rem;
-        padding-right: 2rem;
-        padding-left: 2rem;
-        padding-bottom: 2rem;
-    }
     .download-link {
         background-color: #4e89ae;
         color: white !important;
@@ -101,33 +108,19 @@ st.markdown("""
         font-size: 0.9rem;
         color: #5a5c69;
     }
-    .calendar-day {
-        padding: 0.5rem;
-        border-radius: 0.25rem;
-        text-align: center;
-    }
-    .calendar-day-current {
-        background-color: #f8f9fa;
-    }
-    .calendar-day-has-entries {
-        background-color: #d4edda;
-    }
-    .calendar-day-header {
-        font-weight: bold;
-        text-align: center;
-        padding: 0.5rem;
-        background-color: #e9ecef;
-        border-radius: 0.25rem;
-    }
     .client-card {
         background-color: #f8f9fa;
         border-radius: 0.5rem;
         padding: 1rem;
         box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
         margin-bottom: 1rem;
+        cursor: pointer;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
     .client-card:hover {
         background-color: #e9ecef;
+        transform: translateY(-2px);
+        box-shadow: 0 0.5rem 2rem 0 rgba(58, 59, 69, 0.2);
     }
     .client-name {
         font-size: 1.2rem;
@@ -144,9 +137,11 @@ st.markdown("""
         padding: 1rem;
         box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
         margin-bottom: 0.5rem;
+        transition: transform 0.2s ease;
     }
     .timesheet-entry:hover {
         background-color: #e9ecef;
+        transform: translateY(-2px);
     }
     .timesheet-date {
         font-size: 1rem;
@@ -168,19 +163,522 @@ st.markdown("""
     .stDataFrame {
         font-size: 0.8rem;
     }
+    .floating-card {
+        background-color: white;
+        border-radius: 1rem;
+        padding: 1.5rem;
+        box-shadow: 0 0.25rem 1.5rem rgba(0, 0, 0, 0.1);
+        margin-bottom: 1.5rem;
+    }
+    .info-card {
+        background-color: #e6f3ff;
+        border-left: 4px solid #4e89ae;
+        padding: 1rem;
+        margin: 1rem 0;
+        border-radius: 0 0.5rem 0.5rem 0;
+    }
+    .warning-card {
+        background-color: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 1rem;
+        margin: 1rem 0;
+        border-radius: 0 0.5rem 0.5rem 0;
+    }
+    .error-card {
+        background-color: #f8d7da;
+        border-left: 4px solid #dc3545;
+        padding: 1rem;
+        margin: 1rem 0;
+        border-radius: 0 0.5rem 0.5rem 0;
+    }
+    .success-card {
+        background-color: #d4edda;
+        border-left: 4px solid #28a745;
+        padding: 1rem;
+        margin: 1rem 0;
+        border-radius: 0 0.5rem 0.5rem 0;
+    }
+    .nav-link {
+        color: #5a5c69;
+        text-decoration: none;
+        padding: 0.5rem 1rem;
+        border-radius: 0.25rem;
+        display: block;
+        margin-bottom: 0.25rem;
+    }
+    .nav-link:hover {
+        background-color: #f8f9fa;
+    }
+    .nav-link.active {
+        background-color: #4e89ae;
+        color: white;
+    }
+    .stApp a:not(.download-link):not(.nav-link) {
+        color: #4e89ae;
+    }
+    .stApp a:not(.download-link):not(.nav-link):hover {
+        color: #2e5984;
+        text-decoration: underline;
+    }
+    .tooltip {
+        position: relative;
+        display: inline-block;
+        cursor: help;
+    }
+    .tooltip .tooltiptext {
+        visibility: hidden;
+        width: 200px;
+        background-color: #555;
+        color: #fff;
+        text-align: center;
+        border-radius: 6px;
+        padding: 5px;
+        position: absolute;
+        z-index: 1;
+        bottom: 125%;
+        left: 50%;
+        margin-left: -100px;
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+    .tooltip:hover .tooltiptext {
+        visibility: visible;
+        opacity: 1;
+    }
+    .stat-card {
+        background-color: white;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.08);
+        text-align: center;
+        transition: transform 0.2s ease;
+    }
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+    .stat-card .stat-value {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #4e89ae;
+        margin-bottom: 0.5rem;
+    }
+    .stat-card .stat-label {
+        font-size: 1rem;
+        color: #5a5c69;
+    }
+    .stat-card .stat-icon {
+        font-size: 1.5rem;
+        color: #4e89ae;
+        margin-bottom: 0.5rem;
+    }
+    .filter-section {
+        background-color: #f8f9fa;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .spinner-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 200px;
+    }
+    .spinner {
+        border: 4px solid rgba(0, 0, 0, 0.1);
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border-left-color: #4e89ae;
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    .page-title {
+        color: #2c3e50;
+        font-weight: 600;
+        border-bottom: 2px solid #4e89ae;
+        padding-bottom: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .section-title {
+        color: #34495e;
+        font-weight: 500;
+        margin: 1.5rem 0 1rem 0;
+    }
+    .data-label {
+        font-weight: 500;
+        color: #7f8c8d;
+        margin-bottom: 0.25rem;
+    }
+    .data-value {
+        font-weight: 400;
+        color: #2c3e50;
+        margin-bottom: 1rem;
+    }
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        background-color: #f8f9fa;
+        border-radius: 0.5rem;
+        margin: 1rem 0;
+    }
+    .empty-state-icon {
+        font-size: 3rem;
+        color: #ced4da;
+        margin-bottom: 1rem;
+    }
+    .empty-state-text {
+        font-size: 1.2rem;
+        color: #6c757d;
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+    .badge {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 700;
+        line-height: 1;
+        text-align: center;
+        white-space: nowrap;
+        vertical-align: baseline;
+        border-radius: 0.25rem;
+        margin-right: 0.25rem;
+    }
+    .badge-primary {
+        color: #fff;
+        background-color: #4e89ae;
+    }
+    .badge-success {
+        color: #fff;
+        background-color: #28a745;
+    }
+    .badge-warning {
+        color: #212529;
+        background-color: #ffc107;
+    }
+    .badge-danger {
+        color: #fff;
+        background-color: #dc3545;
+    }
+    .badge-info {
+        color: #fff;
+        background-color: #17a2b8;
+    }
+    .badge-secondary {
+        color: #fff;
+        background-color: #6c757d;
+    }
 </style>
 """, unsafe_allow_html=True)
+
+# Setup custom spinner
+center_running()
+
+# Load lottie animations
+def load_lottieurl(url):
+    try:
+        r = requests.get(url)
+        if r.status_code != 200:
+            return None
+        return r.json()
+    except Exception:
+        return None
+
+# Load lottie animations
+auth_lottie = load_lottieurl("https://assets1.lottiefiles.com/packages/lf20_v7gj8hk3.json")
+dashboard_lottie = load_lottieurl("https://assets1.lottiefiles.com/packages/lf20_dzxg3wqv.json")
+loading_lottie = load_lottieurl("https://assets4.lottiefiles.com/packages/lf20_usmfx6bp.json")
+empty_lottie = load_lottieurl("https://assets9.lottiefiles.com/packages/lf20_hl5n0bwb.json")
+error_lottie = load_lottieurl("https://assets5.lottiefiles.com/packages/lf20_qguxhcqq.json")
+success_lottie = load_lottieurl("https://assets5.lottiefiles.com/packages/lf20_t9gkkhz4.json")
+
+# API Integration Constants and Helper Functions
+TSHEETS_API_BASE_URL = "https://rest.tsheets.com/api/v1"
+TSHEETS_OAUTH_URL = "https://rest.tsheets.com/api/v1/grant"
+
+class TsheetsApiException(Exception):
+    """Exception raised for TSheets API errors."""
+    pass
+
+class TsheetsApi:
+    def __init__(self, api_token=None):
+        self.api_token = api_token
+        self.base_url = TSHEETS_API_BASE_URL
+        self.headers = {
+            "Authorization": f"Bearer {self.api_token}" if self.api_token else "",
+            "Content-Type": "application/json"
+        }
+    
+    def set_token(self, token):
+        self.api_token = token
+        self.headers["Authorization"] = f"Bearer {token}"
+    
+    def make_request(self, endpoint, method="GET", params=None, data=None, retry_count=0):
+        """
+        Make a request to the TSheets API
+        
+        Args:
+            endpoint (str): API endpoint (without base URL)
+            method (str): HTTP method (GET, POST, PUT, DELETE)
+            params (dict): Query parameters
+            data (dict): Request body data for POST/PUT requests
+            retry_count (int): Number of retries performed
+            
+        Returns:
+            dict: API response data
+            
+        Raises:
+            TsheetsApiException: If the API request fails
+        """
+        url = f"{self.base_url}/{endpoint}"
+        
+        try:
+            if method == "GET":
+                response = requests.get(url, headers=self.headers, params=params)
+            elif method == "POST":
+                response = requests.post(url, headers=self.headers, params=params, json=data)
+            elif method == "PUT":
+                response = requests.put(url, headers=self.headers, params=params, json=data)
+            elif method == "DELETE":
+                response = requests.delete(url, headers=self.headers, params=params)
+            else:
+                raise ValueError(f"Unsupported HTTP method: {method}")
+            
+            # Handle rate limiting
+            if response.status_code == 429 and retry_count < 3:
+                # Get retry-after header or default to exponential backoff
+                retry_after = int(response.headers.get("Retry-After", 2 ** retry_count))
+                time.sleep(retry_after)
+                return self.make_request(endpoint, method, params, data, retry_count + 1)
+            
+            response.raise_for_status()
+            return response.json()
+        
+        except requests.exceptions.HTTPError as e:
+            if response.status_code == 401:
+                raise TsheetsApiException("Authentication failed. Please check your API token.")
+            elif response.status_code == 403:
+                raise TsheetsApiException("You don't have permission to access this resource.")
+            elif response.status_code == 404:
+                raise TsheetsApiException(f"Resource not found: {endpoint}")
+            elif response.status_code == 429:
+                raise TsheetsApiException("Rate limit exceeded. Please try again later.")
+            else:
+                try:
+                    error_data = response.json()
+                    error_message = error_data.get("error", {}).get("message", str(e))
+                    raise TsheetsApiException(f"API Error: {error_message}")
+                except ValueError:
+                    raise TsheetsApiException(f"API Error: {str(e)}")
+        
+        except requests.exceptions.RequestException as e:
+            raise TsheetsApiException(f"Request failed: {str(e)}")
+    
+    def get_current_user(self):
+        """Get the current user information"""
+        return self.make_request("current_user")
+    
+    def get_users(self, params=None):
+        """Get all users"""
+        return self.make_request("users", params=params)
+    
+    def get_jobcodes(self, params=None):
+        """Get all jobcodes (projects/tasks)"""
+        return self.make_request("jobcodes", params=params)
+    
+    def get_timesheets(self, params=None):
+        """Get timesheet entries"""
+        return self.make_request("timesheets", params=params)
+    
+    def add_timesheet(self, data):
+        """Add a new timesheet entry"""
+        return self.make_request("timesheets", method="POST", data=data)
+    
+    def edit_timesheet(self, data):
+        """Edit an existing timesheet entry"""
+        return self.make_request("timesheets", method="PUT", data=data)
+    
+    def delete_timesheet(self, timesheet_id):
+        """Delete a timesheet entry"""
+        return self.make_request(f"timesheets/{timesheet_id}", method="DELETE")
+    
+    def get_reports(self, report_type, params=None):
+        """Get various reports"""
+        return self.make_request(f"reports/{report_type}", params=params)
+    
+    def get_groups(self, params=None):
+        """Get all groups"""
+        return self.make_request("groups", params=params)
+    
+    def get_custom_fields(self, params=None):
+        """Get custom fields"""
+        return self.make_request("customfields", params=params)
+    
+    def get_custom_field_items(self, params=None):
+        """Get custom field items"""
+        return self.make_request("customfielditems", params=params)
+    
+    def get_locations(self, params=None):
+        """Get locations"""
+        return self.make_request("locations", params=params)
+    
+    def get_geolocation(self, params=None):
+        """Get geolocation data"""
+        return self.make_request("geolocations", params=params)
+    
+    def get_effective_settings(self):
+        """Get effective settings for the current user"""
+        return self.make_request("effective_settings")
+    
+    def on_the_clock(self, user_id=None):
+        """Check if user is currently clocked in"""
+        params = {"user_ids": user_id} if user_id else None
+        return self.make_request("timesheets/on_the_clock", params=params)
+
+# Data Processing Functions
+def process_timesheets_data(timesheets_data, jobcodes_data, users_data):
+    """
+    Process timesheet data from TSheets API into a pandas DataFrame
+    
+    Args:
+        timesheets_data (dict): Raw timesheet data from API
+        jobcodes_data (dict): Raw jobcode data from API
+        users_data (dict): Raw user data from API
+        
+    Returns:
+        pd.DataFrame: Processed timesheet data
+    """
+    if not timesheets_data.get('results', {}).get('timesheets'):
+        return pd.DataFrame()
+    
+    timesheets = timesheets_data['results']['timesheets']
+    
+    # Create a mapping of jobcode IDs to names
+    jobcode_map = {}
+    if jobcodes_data and 'results' in jobcodes_data and 'jobcodes' in jobcodes_data['results']:
+        for jc_id, jc in jobcodes_data['results']['jobcodes'].items():
+            jobcode_map[jc_id] = jc['name']
+    
+    # Create a mapping of user IDs to names
+    user_map = {}
+    if users_data and 'results' in users_data and 'users' in users_data['results']:
+        for user_id, user in users_data['results']['users'].items():
+            user_map[user_id] = f"{user['first_name']} {user['last_name']}"
+    
+    # Process timesheet entries
+    processed_data = []
+    for ts_id, ts in timesheets.items():
+        entry = {
+            'id': ts_id,
+            'user_id': ts['user_id'],
+            'user': user_map.get(str(ts['user_id']), f"User {ts['user_id']}"),
+            'jobcode_id': ts['jobcode_id'],
+            'job': jobcode_map.get(str(ts['jobcode_id']), f"Job {ts['jobcode_id']}"),
+            'start': datetime.fromtimestamp(ts['start']),
+            'end': datetime.fromtimestamp(ts['end']) if ts['end'] else None,
+            'date': datetime.fromtimestamp(ts['start']).date(),
+            'duration': ts['duration'],
+            'notes': ts['notes'] if 'notes' in ts else '',
+            'status': ts['type'],
+            'on_the_clock': ts['on_the_clock'] if 'on_the_clock' in ts else False,
+            'timezone': ts.get('tz', 'UTC'),
+            'location': ts.get('location', ''),
+            'attached_files': len(ts.get('attached_files', [])),
+            'customfields': ts.get('customfields', {})
+        }
+        
+        # Calculate duration in hours
+        entry['duration_hours'] = entry['duration'] / 3600 if entry['duration'] else 0
+        
+        processed_data.append(entry)
+    
+    # Convert to DataFrame
+    df = pd.DataFrame(processed_data)
+    return df
+
+def process_jobcodes_data(jobcodes_data):
+    """Process jobcode data from TSheets API into a pandas DataFrame"""
+    if not jobcodes_data.get('results', {}).get('jobcodes'):
+        return pd.DataFrame()
+    
+    jobcodes = jobcodes_data['results']['jobcodes']
+    
+    # Process jobcode entries
+    processed_data = []
+    for jc_id, jc in jobcodes.items():
+        entry = {
+            'id': jc_id,
+            'name': jc['name'],
+            'parent_id': jc.get('parent_id', None),
+            'assigned_to_all': jc.get('assigned_to_all', False),
+            'type': jc.get('type', ''),
+            'billable': jc.get('billable', False),
+            'billable_rate': jc.get('billable_rate', 0),
+            'has_children': jc.get('has_children', False),
+            'last_modified': datetime.fromtimestamp(jc['last_modified']),
+            'created': datetime.fromtimestamp(jc['created']),
+            'active': jc.get('active', True)
+        }
+        processed_data.append(entry)
+    
+    # Convert to DataFrame
+    df = pd.DataFrame(processed_data)
+    return df
+
+def process_users_data(users_data):
+    """Process user data from TSheets API into a pandas DataFrame"""
+    if not users_data.get('results', {}).get('users'):
+        return pd.DataFrame()
+    
+    users = users_data['results']['users']
+    
+    # Process user entries
+    processed_data = []
+    for user_id, user in users.items():
+        entry = {
+            'id': user_id,
+            'first_name': user['first_name'],
+            'last_name': user['last_name'],
+            'full_name': f"{user['first_name']} {user['last_name']}",
+            'username': user.get('username', ''),
+            'email': user.get('email', ''),
+            'group_id': user.get('group_id', None),
+            'manager_of_group_ids': user.get('manager_of_group_ids', []),
+            'employee_number': user.get('employee_number', ''),
+            'hire_date': user.get('hire_date', ''),
+            'terminated': user.get('terminated', False),
+            'last_modified': datetime.fromtimestamp(user['last_modified']),
+            'created': datetime.fromtimestamp(user['created']),
+            'active': user.get('active', True)
+        }
+        processed_data.append(entry)
+    
+    # Convert to DataFrame
+    df = pd.DataFrame(processed_data)
+    return df
 
 # Utility functions
 def format_duration(seconds):
     """Format duration in seconds to HH:MM:SS"""
-    hours = seconds // 3600
-    minutes = (seconds % 3600) // 60
-    secs = seconds % 60
+    if not seconds:
+        return "00:00:00"
+    
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    secs = int(seconds % 60)
     return f"{hours:02d}:{minutes:02d}:{secs:02d}"
 
 def format_duration_hours(seconds):
     """Format duration in seconds to decimal hours"""
+    if not seconds:
+        return "0.00"
+    
     hours = seconds / 3600
     return f"{hours:.2f}"
 
@@ -247,6 +745,41 @@ def get_date_range_presets():
         )
     }
 
+def generate_calendar_events(df_timesheets):
+    """Generate calendar events from timesheet data"""
+    if df_timesheets.empty:
+        return []
+    
+    events = []
+    for _, row in df_timesheets.iterrows():
+        start_time = row['start']
+        end_time = row['end'] if row['end'] else start_time + timedelta(seconds=row['duration'])
+        
+        events.append({
+            'id': str(row['id']),
+            'title': f"{row['job']}",
+            'start': start_time.strftime('%Y-%m-%dT%H:%M:%S'),
+            'end': end_time.strftime('%Y-%m-%dT%H:%M:%S'),
+            'backgroundColor': get_jobcode_color(row['job']),
+            'borderColor': get_jobcode_color(row['job']),  get_jobcode_color(row['job']),
+            'borderColor': get_jobcode_color(row['job']),
+            'extendedProps': {
+                'jobcode': row['job'],
+                'notes': row['notes'],
+                'duration': format_duration(row['duration']),
+                'duration_hours': row['duration_hours'],
+                'user': row['user']
+            }
+        })
+    
+    return events
+
+def get_jobcode_color(jobcode_name):
+    """Generate a consistent color for a jobcode based on its name"""
+    # Simple hash function to generate a color
+    hash_value = hash(jobcode_name) % 360
+    return f"hsl({hash_value}, 70%, 60%)"
+
 def get_month_calendar_data(year, month, df_timesheets):
     """Generate calendar data for a specific month"""
     # Get the first day of the month
@@ -288,9 +821,9 @@ def get_month_calendar_data(year, month, df_timesheets):
         has_entries = False
         hours = 0
         
-        if not df_timesheets.empty:
-            day_entries = df_timesheets[df_timesheets['date'].dt.date == current_date]
-            has_entries = not day_entries.empty
+        if not df_timesheets.empty and 'date' in df_timesheets.columns:
+            day_entries = df_timesheets[df_timesheets['date'] == current_date]
+            has_entries = len(day_entries) > 0
             hours = day_entries['duration_hours'].sum() if has_entries else 0
         
         calendar_dates.append({
@@ -318,68 +851,72 @@ def get_month_calendar_data(year, month, df_timesheets):
 
     return calendar_dates
 
-def search_clients(query, clients):
-    """Search clients by name, contact, or email"""
-    if not query:
-        return clients
-
-    query = query.lower()
-    results = []
-
-    for client in clients:
-        if (query in client['name'].lower() or 
-            query in client['contact'].lower() or 
-            query in client['email'].lower()):
-            results.append(client)
-
-    return results
-
-def generate_calendar_events(df_timesheets):
-    """Generate calendar events from timesheet data"""
-    if df_timesheets.empty:
-        return []
+def load_data(api, start_date, end_date):
+    """
+    Load data from TSheets API
     
-    events = []
-    for _, row in df_timesheets.iterrows():
-        start_time = row['date']
-        end_time = start_time + timedelta(hours=row['duration_hours'])
+    Args:
+        api (TsheetsApi): TSheets API instance
+        start_date (date): Start date for filtering
+        end_date (date): End date for filtering
         
-        events.append({
-            'id': str(row.name),
-            'title': f"{row['client']} - {row['description']}",
-            'start': start_time.strftime('%Y-%m-%dT%H:%M:%S'),
-            'end': end_time.strftime('%Y-%m-%dT%H:%M:%S'),
-            'backgroundColor': get_client_color(row['client']),
-            'borderColor': get_client_color(row['client']),
-            'extendedProps': {
-                'client': row['client'],
-                'description': row['description'],
-                'duration': format_duration(row['duration']),
-                'duration_hours': row['duration_hours']
+    Returns:
+        tuple: (users_df, jobcodes_df, timesheets_df, error)
+    """
+    try:
+        with st.spinner("Loading user data..."):
+            users_data = api.get_users()
+            users_df = process_users_data(users_data)
+        
+        with st.spinner("Loading jobcode data..."):
+            jobcodes_data = api.get_jobcodes()
+            jobcodes_df = process_jobcodes_data(jobcodes_data)
+        
+        with st.spinner("Loading timesheet data..."):
+            # Convert dates to timestamps for API
+            start_timestamp = int(datetime.combine(start_date, datetime.min.time()).timestamp())
+            end_timestamp = int(datetime.combine(end_date, datetime.max.time()).timestamp())
+            
+            params = {
+                "start_date": start_timestamp,
+                "end_date": end_timestamp,
+                "per_page": 1000  # Maximum allowed per page
             }
-        })
+            
+            timesheets_data = api.get_timesheets(params=params)
+            timesheets_df = process_timesheets_data(timesheets_data, jobcodes_data, users_data)
+            
+            # Handle pagination if needed
+            while timesheets_data.get('more', False) and timesheets_data.get('next_page', None):
+                params['page'] = timesheets_data['next_page']
+                timesheets_data = api.get_timesheets(params=params)
+                additional_df = process_timesheets_data(timesheets_data, jobcodes_data, users_data)
+                timesheets_df = pd.concat([timesheets_df, additional_df], ignore_index=True)
+        
+        return users_df, jobcodes_df, timesheets_df, None
     
-    return events
-
-def get_client_color(client_name):
-    """Generate a consistent color for a client based on their name"""
-    # Simple hash function to generate a color
-    hash_value = hash(client_name) % 360
-    return f"hsl({hash_value}, 70%, 60%)"
+    except TsheetsApiException as e:
+        return None, None, None, str(e)
+    except Exception as e:
+        return None, None, None, f"Unexpected error: {str(e)}"
 
 # Initialize session state
 if 'authenticated' not in st.session_state:
     st.session_state.authenticated = False
-if 'api_key' not in st.session_state:
-    st.session_state.api_key = ""
-if 'username' not in st.session_state:
-    st.session_state.username = ""
-if 'password' not in st.session_state:
-    st.session_state.password = ""
+if 'api_token' not in st.session_state:
+    st.session_state.api_token = ""
+if 'api' not in st.session_state:
+    st.session_state.api = None
+if 'users_df' not in st.session_state:
+    st.session_state.users_df = None
+if 'jobcodes_df' not in st.session_state:
+    st.session_state.jobcodes_df = None
+if 'timesheets_df' not in st.session_state:
+    st.session_state.timesheets_df = None
 if 'current_view' not in st.session_state:
     st.session_state.current_view = "Dashboard"
-if 'selected_client' not in st.session_state:
-    st.session_state.selected_client = None
+if 'selected_jobcode' not in st.session_state:
+    st.session_state.selected_jobcode = None
 if 'selected_date_range' not in st.session_state:
     st.session_state.selected_date_range = "Last 7 Days"
 if 'custom_start_date' not in st.session_state:
@@ -390,59 +927,108 @@ if 'calendar_date' not in st.session_state:
     st.session_state.calendar_date = datetime.now().date()
 if 'calendar_view' not in st.session_state:
     st.session_state.calendar_view = "month"
+if 'current_user' not in st.session_state:
+    st.session_state.current_user = None
+if 'error' not in st.session_state:
+    st.session_state.error = None
+if 'data_loaded' not in st.session_state:
+    st.session_state.data_loaded = False
+if 'last_refresh' not in st.session_state:
+    st.session_state.last_refresh = None
 
 # Sidebar for authentication
 with st.sidebar:
-    st.image("https://via.placeholder.com/150x80?text=TSheets+CRM", width=200)
-    st.title("TSheets CRM Manager")
-    
     if not st.session_state.authenticated:
-        st.subheader("Authentication")
-        auth_method = st.radio("Authentication Method", ["API Key", "Username/Password"])
+        st.image("https://www.tsheets.com/uploads/2020/06/tsheets-logo.png", width=200)
+        st.title("TSheets CRM Manager Pro")
         
-        if auth_method == "API Key":
-            api_key = st.text_input("API Key", type="password")
-            if st.button("Login with API Key"):
-                # In a real app, validate the API key
-                if api_key:  # Simplified validation
-                    st.session_state.api_key = api_key
-                    st.session_state.authenticated = True
-                    st.experimental_rerun()
+        st.header("Authentication")
+        
+        if auth_lottie:
+            st_lottie(auth_lottie, height=150, key="auth_animation")
+        
+        st.info("Please provide your TSheets API token to continue.")
+        
+        with st.form("auth_form"):
+            api_token = st.text_input("API Token", type="password", 
+                                    help="You can generate an API token in your TSheets account under Account > API")
+            submit_button = st.form_submit_button(label="Login")
+            
+            if submit_button:
+                if api_token:
+                    # Initialize API client
+                    api = TsheetsApi(api_token)
+                    
+                    try:
+                        # Test API token by getting current user
+                        with st.spinner("Verifying credentials..."):
+                            current_user_data = api.get_current_user()
+                            
+                            if 'results' in current_user_data and 'user' in current_user_data['results']:
+                                user = current_user_data['results']['user']
+                                st.session_state.current_user = {
+                                    'id': user['id'],
+                                    'first_name': user['first_name'],
+                                    'last_name': user['last_name'],
+                                    'email': user.get('email', ''),
+                                    'company_name': user.get('company_name', '')
+                                }
+                                
+                                st.session_state.api_token = api_token
+                                st.session_state.api = api
+                                st.session_state.authenticated = True
+                                
+                                # Load initial data
+                                date_range_presets = get_date_range_presets()
+                                start_date, end_date = date_range_presets[st.session_state.selected_date_range]
+                                
+                                users_df, jobcodes_df, timesheets_df, error = load_data(api, start_date, end_date)
+                                
+                                if error:
+                                    st.session_state.error = error
+                                else:
+                                    st.session_state.users_df = users_df
+                                    st.session_state.jobcodes_df = jobcodes_df
+                                    st.session_state.timesheets_df = timesheets_df
+                                    st.session_state.data_loaded = True
+                                    st.session_state.last_refresh = datetime.now()
+                                
+                                st.experimental_rerun()
+                            else:
+                                st.error("Invalid API token. Please check your credentials.")
+                    except TsheetsApiException as e:
+                        st.error(f"API Error: {str(e)}")
+                    except Exception as e:
+                        st.error(f"Unexpected error: {str(e)}")
                 else:
-                    st.error("Invalid API Key")
-        else:
-            username = st.text_input("Username")
-            password = st.text_input("Password", type="password")
-            if st.button("Login"):
-                # In a real app, validate the credentials
-                if username and password:  # Simplified validation
-                    st.session_state.username = username
-                    st.session_state.password = password
-                    st.session_state.authenticated = True
-                    st.experimental_rerun()
-                else:
-                    st.error("Invalid credentials")
+                    st.error("Please enter your API token.")
+        
+        st.markdown("---")
+        st.caption("Don't have a TSheets account? [Sign up here](https://www.tsheets.com/signup)")
+        st.caption("Need help? [Contact Support](https://www.tsheets.com/contact-us)")
     else:
         # Show user info
-        st.success("Authenticated")
-        if st.session_state.username:
-            st.write(f"Logged in as: **{st.session_state.username}**")
-        else:
-            st.write("Logged in with API Key")
+        st.image("https://www.tsheets.com/uploads/2020/06/tsheets-logo.png", width=150)
+        st.title("TSheets CRM Manager Pro")
+        
+        if st.session_state.current_user:
+            st.success(f"Welcome, {st.session_state.current_user['first_name']}!")
+            if st.session_state.current_user.get('company_name'):
+                st.caption(f"Company: {st.session_state.current_user['company_name']}")
         
         # Navigation
-        st.subheader("Navigation")
+        st.header("Navigation")
         selected = option_menu(
             menu_title=None,
-            options=["Dashboard", "Timesheets", "Clients", "Calendar", "Reports", "Settings"],
-            icons=["speedometer2", "clock", "people", "calendar3", "file-earmark-bar-graph", "gear"],
+            options=["Dashboard", "Timesheets", "Projects", "Calendar", "Reports", "Settings"],
+            icons=["speedometer2", "clock", "folder", "calendar3", "file-earmark-bar-graph", "gear"],
             menu_icon="cast",
             default_index=0,
         )
         st.session_state.current_view = selected
         
         # Date range selector
-        st.subheader("Date Range")
+        st.header("Date Range")
         date_range_presets = get_date_range_presets()
         date_range_options = list(date_range_presets.keys()) + ["Custom"]
         selected_date_range = st.selectbox("Select Date Range", date_range_options, index=date_range_options.index(st.session_state.selected_date_range))
@@ -461,30 +1047,93 @@ with st.sidebar:
         else:
             start_date, end_date = date_range_presets[selected_date_range]
         
-        st.session_state.selected_date_range = selected_date_range
+        # Update session state
+        if st.session_state.selected_date_range != selected_date_range:
+            st.session_state.selected_date_range = selected_date_range
+            
+            # Reload data if date range changed
+            if st.session_state.authenticated and st.session_state.api:
+                users_df, jobcodes_df, timesheets_df, error = load_data(st.session_state.api, start_date, end_date)
+                
+                if error:
+                    st.session_state.error = error
+                else:
+                    st.session_state.users_df = users_df
+                    st.session_state.jobcodes_df = jobcodes_df
+                    st.session_state.timesheets_df = timesheets_df
+                    st.session_state.data_loaded = True
+                    st.session_state.last_refresh = datetime.now()
+        
+        # Refresh data button
+        if st.button("Refresh Data"):
+            if st.session_state.authenticated and st.session_state.api:
+                users_df, jobcodes_df, timesheets_df, error = load_data(st.session_state.api, start_date, end_date)
+                
+                if error:
+                    st.session_state.error = error
+                else:
+                    st.session_state.users_df = users_df
+                    st.session_state.jobcodes_df = jobcodes_df
+                    st.session_state.timesheets_df = timesheets_df
+                    st.session_state.data_loaded = True
+                    st.session_state.last_refresh = datetime.now()
+                    st.success("Data refreshed successfully!")
+        
+        if st.session_state.last_refresh:
+            st.caption(f"Last refresh: {st.session_state.last_refresh.strftime('%Y-%m-%d %H:%M:%S')}")
         
         # Logout button
+        st.markdown("---")
         if st.button("Logout"):
-            st.session_state.authenticated = False
-            st.session_state.api_key = ""
-            st.session_state.username = ""
-            st.session_state.password = ""
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
             st.experimental_rerun()
 
 # Main content
 if not st.session_state.authenticated:
-    st.title("Welcome to TSheets CRM Manager")
-    st.write("Please login using the sidebar to access the application.")
+    st.title("Welcome to TSheets CRM Manager Pro")
+    st.write("Please login using your TSheets API token to access the application.")
     
-    # Show demo images
-    col1, col2 = st.columns(2)
-    with col1:
-        st.image("https://via.placeholder.com/600x400?text=Dashboard+Demo", use_column_width=True)
-        st.caption("Dashboard View")
-    with col2:
-        st.image("https://via.placeholder.com/600x400?text=Reports+Demo", use_column_width=True)
-        st.caption("Reports View")
+    # Features
+    st.header("Features")
+    
+    feature_col1, feature_col2, feature_col3 = st.columns(3)
+    
+    with feature_col1:
+        st.markdown("""
+        <div class="stat-card">
+            <div class="stat-icon">📊</div>
+            <div class="stat-label">Comprehensive Dashboards</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with feature_col2:
+        st.markdown("""
+        <div class="stat-card">
+            <div class="stat-icon">📆</div>
+            <div class="stat-label">Interactive Calendar</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with feature_col3:
+        st.markdown("""
+        <div class="stat-card">
+            <div class="stat-icon">📝</div>
+            <div class="stat-label">Advanced Reporting</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Show dashboard sample image
+    if dashboard_lottie:
+        st_lottie(dashboard_lottie, height=300, key="dashboard_animation")
 else:
+    # Check for errors
+    if st.session_state.error:
+        st.error(f"Error: {st.session_state.error}")
+        if st.button("Clear Error"):
+            st.session_state.error = None
+            st.experimental_rerun()
+    
     # Get date range
     if st.session_state.selected_date_range == "Custom":
         start_date = st.session_state.custom_start_date
@@ -493,999 +1142,930 @@ else:
         date_range_presets = get_date_range_presets()
         start_date, end_date = date_range_presets[st.session_state.selected_date_range]
     
-    # Load mock data
-    # In a real app, this would be fetched from the TSheets API
-    
-    # Generate mock clients
-    clients = [
-        {
-            "id": 1,
-            "name": "Acme Corp",
-            "contact": "John Doe",
-            "email": "john.doe@acme.com",
-            "phone": "555-123-4567",
-            "address": "123 Main St, Anytown, USA",
-            "notes": "Key client for software development projects",
-            "active": True,
-            "created_at": "2022-01-15"
-        },
-        {
-            "id": 2,
-            "name": "Globex Inc",
-            "contact": "Jane Smith",
-            "email": "jane.smith@globex.com",
-            "phone": "555-987-6543",
-            "address": "456 Oak Ave, Somewhere, USA",
-            "notes": "Regular client for web design services",
-            "active": True,
-            "created_at": "2022-02-20"
-        },
-        {
-            "id": 3,
-            "name": "Initech LLC",
-            "contact": "Michael Bolton",
-            "email": "michael.bolton@initech.com",
-            "phone": "555-555-5555",
-            "address": "789 Pine St, Elsewhere, USA",
-            "notes": "New client for IT consulting",
-            "active": True,
-            "created_at": "2022-03-10"
-        },
-        {
-            "id": 4,
-            "name": "Umbrella Corp",
-            "contact": "Alice Johnson",
-            "email": "alice.johnson@umbrella.com",
-            "phone": "555-222-3333",
-            "address": "321 Elm St, Nowhere, USA",
-            "notes": "Pharmaceutical research client",
-            "active": False,
-            "created_at": "2022-01-05"
-        },
-        {
-            "id": 5,
-            "name": "Stark Industries",
-            "contact": "Tony Stark",
-            "email": "tony.stark@stark.com",
-            "phone": "555-444-1111",
-            "address": "1 Stark Tower, New York, USA",
-            "notes": "High-tech R&D projects",
-            "active": True,
-            "created_at": "2022-04-15"
-        }
-    ]
-    
-    # Generate mock timesheet entries
-    np.random.seed(42)  # For reproducible results
-    
-    # Generate dates within the range
-    date_range = pd.date_range(start=start_date - timedelta(days=30), end=end_date + timedelta(days=30))
-    
-    # Create timesheet entries
-    timesheet_entries = []
-    for i in range(100):  # Generate 100 entries
-        entry_date = np.random.choice(date_range)
-        client = np.random.choice(clients)
-        
-        # Generate a duration between 0.5 and 8 hours (in seconds)
-        duration_hours = np.random.uniform(0.5, 8)
-        duration = int(duration_hours * 3600)
-        
-        timesheet_entries.append({
-            "id": i + 1,
-            "date": entry_date,
-            "client": client["name"],
-            "description": np.random.choice([
-                "Software Development",
-                "Web Design",
-                "Meeting",
-                "Documentation",
-                "Testing",
-                "Maintenance",
-                "Support",
-                "Planning",
-                "Research",
-                "Training"
-            ]),
-            "duration": duration,
-            "duration_hours": duration_hours,
-            "billable": np.random.choice([True, False], p=[0.8, 0.2]),
-            "billed": np.random.choice([True, False], p=[0.7, 0.3]) if np.random.choice([True, False], p=[0.8, 0.2]) else False,
-            "notes": np.random.choice(["", "Follow-up required", "Client was satisfied", "Need to discuss next steps"], p=[0.7, 0.1, 0.1, 0.1])
-        })
-    
-    # Convert to DataFrame
-    df_timesheets = pd.DataFrame(timesheet_entries)
-    
-    # Filter by date range
-    df_timesheets_filtered = df_timesheets[
-        (df_timesheets['date'].dt.date >= start_date) & 
-        (df_timesheets['date'].dt.date <= end_date)
-    ]
-    
-    # Sort by date (most recent first)
-    df_timesheets_filtered = df_timesheets_filtered.sort_values(by='date', ascending=False)
-    
     # Dashboard View
     if st.session_state.current_view == "Dashboard":
         st.title("Dashboard")
-        st.write(f"Showing data from **{start_date}** to **{end_date}**")
+        st.write(f"Showing data from **{start_date.strftime('%Y-%m-%d')}** to **{end_date.strftime('%Y-%m-%d')}**")
         
-        # Key metrics
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            total_hours = df_timesheets_filtered['duration_hours'].sum()
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value">{total_hours:.2f}</div>
-                <div class="metric-label">Total Hours</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col2:
-            billable_hours = df_timesheets_filtered[df_timesheets_filtered['billable']]['duration_hours'].sum()
-            billable_percentage = (billable_hours / total_hours * 100) if total_hours > 0 else 0
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value">{billable_hours:.2f} ({billable_percentage:.1f}%)</div>
-                <div class="metric-label">Billable Hours</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col3:
-            unique_clients = df_timesheets_filtered['client'].nunique()
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value">{unique_clients}</div>
-                <div class="metric-label">Active Clients</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col4:
-            avg_daily_hours = total_hours / (len(pd.date_range(start=start_date, end=end_date)) or 1)
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value">{avg_daily_hours:.2f}</div>
-                <div class="metric-label">Avg. Daily Hours</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        # Charts
-        st.subheader("Time Distribution")
-        
-        tab1, tab2, tab3 = st.tabs(["By Client", "By Activity", "By Day"])
-        
-        with tab1:
-            # Hours by client
-            hours_by_client = df_timesheets_filtered.groupby('client')['duration_hours'].sum().reset_index()
-            hours_by_client = hours_by_client.sort_values('duration_hours', ascending=False)
+        if not st.session_state.data_loaded:
+            if loading_lottie:
+                st_lottie(loading_lottie, height=200, key="loading_animation")
+            st.info("Loading data from TSheets API. Please wait...")
+        elif st.session_state.timesheets_df is None or st.session_state.timesheets_df.empty:
+            if empty_lottie:
+                st_lottie(empty_lottie, height=200, key="empty_animation")
+            st.warning("No timesheet data available for the selected date range.")
+        else:
+            # Key metrics
+            df = st.session_state.timesheets_df
             
-            fig = px.bar(
-                hours_by_client,
-                x='client',
-                y='duration_hours',
-                title='Hours by Client',
-                labels={'client': 'Client', 'duration_hours': 'Hours'},
-                color='duration_hours',
-                color_continuous_scale=px.colors.sequential.Blues
-            )
-            fig.update_layout(height=400)
-            st.plotly_chart(fig, use_container_width=True)
-        
-        with tab2:
-            # Hours by activity
-            hours_by_activity = df_timesheets_filtered.groupby('description')['duration_hours'].sum().reset_index()
-            hours_by_activity = hours_by_activity.sort_values('duration_hours', ascending=False)
+            total_hours = df['duration_hours'].sum()
+            unique_jobcodes = df['jobcode_id'].nunique()
+            total_entries = len(df)
+            avg_daily_hours = total_hours / max((end_date - start_date).days + 1, 1)
             
-            fig = px.pie(
-                hours_by_activity,
-                values='duration_hours',
-                names='description',
-                title='Hours by Activity',
-                color_discrete_sequence=px.colors.sequential.Blues
-            )
-            fig.update_layout(height=400)
-            st.plotly_chart(fig, use_container_width=True)
-        
-        with tab3:
-            # Hours by day
-            hours_by_day = df_timesheets_filtered.groupby(df_timesheets_filtered['date'].dt.date)['duration_hours'].sum().reset_index()
-            hours_by_day = hours_by_day.sort_values('date')
-            
-            fig = px.line(
-                hours_by_day,
-                x='date',
-                y='duration_hours',
-                title='Hours by Day',
-                labels={'date': 'Date', 'duration_hours': 'Hours'},
-                markers=True
-            )
-            fig.update_layout(height=400)
-            st.plotly_chart(fig, use_container_width=True)
-        
-        # Recent activity
-        st.subheader("Recent Activity")
-        recent_entries = df_timesheets_filtered.head(5)
-        
-        for _, entry in recent_entries.iterrows():
-            st.markdown(f"""
-            <div class="timesheet-entry">
-                <div class="timesheet-date">{entry['date'].strftime('%Y-%m-%d')}</div>
-                <div class="timesheet-client">{entry['client']}</div>
-                <div class="timesheet-description">{entry['description']}</div>
-                <div class="timesheet-duration">{format_duration_hours(entry['duration'])} hours</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        if len(recent_entries) == 0:
-            st.info("No recent activity in the selected date range.")
-        
-        # Quick links
-        st.subheader("Quick Links")
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            if st.button("Add Timesheet Entry"):
-                st.session_state.current_view = "Timesheets"
-                st.experimental_rerun()
-        
-        with col2:
-            if st.button("View All Clients"):
-                st.session_state.current_view = "Clients"
-                st.experimental_rerun()
-        
-        with col3:
-            if st.button("Generate Reports"):
-                st.session_state.current_view = "Reports"
-                st.experimental_rerun()
-    
-    # Timesheets View
-    elif st.session_state.current_view == "Timesheets":
-        st.title("Timesheets")
-        st.write(f"Showing data from **{start_date}** to **{end_date}**")
-        
-        # Add new timesheet entry
-        with st.expander("Add New Timesheet Entry", expanded=False):
-            col1, col2 = st.columns(2)
+            col1, col2, col3, col4 = st.columns(4)
             
             with col1:
-                entry_date = st.date_input("Date", value=datetime.now().date())
-                entry_client = st.selectbox("Client", options=[client["name"] for client in clients])
-                entry_billable = st.checkbox("Billable", value=True)
+                st.markdown(f"""
+                <div class="stat-card">
+                    <div class="stat-value">{total_hours:.2f}</div>
+                    <div class="stat-label">Total Hours</div>
+                </div>
+                """, unsafe_allow_html=True)
             
             with col2:
-                entry_description = st.selectbox("Activity", options=[
-                    "Software Development",
-                    "Web Design",
-                    "Meeting",
-                    "Documentation",
-                    "Testing",
-                    "Maintenance",
-                    "Support",
-                    "Planning",
-                    "Research",
-                    "Training"
-                ])
-                entry_duration = st.number_input("Duration (hours)", min_value=0.25, max_value=24.0, value=1.0, step=0.25)
-                entry_billed = st.checkbox("Billed", value=False)
+                st.markdown(f"""
+                <div class="stat-card">
+                    <div class="stat-value">{unique_jobcodes}</div>
+                    <div class="stat-label">Active Projects</div>
+                </div>
+                """, unsafe_allow_html=True)
             
-            entry_notes = st.text_area("Notes", height=100)
+            with col3:
+                st.markdown(f"""
+                <div class="stat-card">
+                    <div class="stat-value">{total_entries}</div>
+                    <div class="stat-label">Time Entries</div>
+                </div>
+                """, unsafe_allow_html=True)
             
-            if st.button("Save Timesheet Entry"):
-                st.success("Timesheet entry saved successfully!")
-                # In a real app, this would save to the TSheets API
-                st.experimental_rerun()
-        
-        # Filter options
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            filter_client = st.multiselect(
-                "Filter by Client",
-                options=sorted(df_timesheets_filtered['client'].unique()),
-                default=[]
+            with col4:
+                st.markdown(f"""
+                <div class="stat-card">
+                    <div class="stat-value">{avg_daily_hours:.2f}</div>
+                    <div class="stat-label">Avg. Daily Hours</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            # Charts
+            colored_header(
+                label="Time Distribution",
+                description="Analyzing how your time is distributed",
+                color_name="blue-70"
             )
-        
-        with col2:
-            filter_activity = st.multiselect(
-                "Filter by Activity",
-                options=sorted(df_timesheets_filtered['description'].unique()),
-                default=[]
+            
+            tab1, tab2, tab3 = st.tabs(["By Project", "By Day", "By User"])
+            
+            with tab1:
+                # Hours by jobcode
+                hours_by_jobcode = df.groupby('job')['duration_hours'].sum().reset_index()
+                hours_by_jobcode = hours_by_jobcode.sort_values('duration_hours', ascending=False)
+                
+                with chart_container(df):
+                    fig = px.bar(
+                        hours_by_jobcode.head(10),
+                        x='job',
+                        y='duration_hours',
+                        title='Top 10 Projects by Hours',
+                        labels={'job': 'Project', 'duration_hours': 'Hours'},
+                        color='duration_hours',
+                        color_continuous_scale=px.colors.sequential.Blues
+                    )
+                    fig.update_layout(height=400)
+                    st.plotly_chart(fig, use_container_width=True)
+            
+            with tab2:
+                # Hours by day
+                df['date_only'] = df['start'].dt.date
+                hours_by_day = df.groupby('date_only')['duration_hours'].sum().reset_index()
+                hours_by_day = hours_by_day.sort_values('date_only')
+                
+                with chart_container(df):
+                    fig = px.line(
+                        hours_by_day,
+                        x='date_only',
+                        y='duration_hours',
+                        title='Hours by Day',
+                        labels={'date_only': 'Date', 'duration_hours': 'Hours'},
+                        markers=True
+                    )
+                    fig.update_layout(height=400)
+                    st.plotly_chart(fig, use_container_width=True)
+            
+            with tab3:
+                # Hours by user
+                if 'user' in df.columns:
+                    hours_by_user = df.groupby('user')['duration_hours'].sum().reset_index()
+                    hours_by_user = hours_by_user.sort_values('duration_hours', ascending=False)
+                    
+                    with chart_container(df):
+                        fig = px.bar(
+                            hours_by_user,
+                            x='user',
+                            y='duration_hours',
+                            title='Hours by User',
+                            labels={'user': 'User', 'duration_hours': 'Hours'},
+                            color='duration_hours',
+                            color_continuous_scale=px.colors.sequential.Blues
+                        )
+                        fig.update_layout(height=400)
+                        st.plotly_chart(fig, use_container_width=True)
+            
+            # Recent activity
+            colored_header(
+                label="Recent Activity",
+                description="Your latest time entries",
+                color_name="blue-70"
             )
-        
-        with col3:
-            filter_billable = st.radio("Billable Status", options=["All", "Billable Only", "Non-Billable Only"])
-        
-        # Apply filters
-        filtered_df = df_timesheets_filtered.copy()
-        
-        if filter_client:
-            filtered_df = filtered_df[filtered_df['client'].isin(filter_client)]
-        
-        if filter_activity:
-            filtered_df = filtered_df[filtered_df['description'].isin(filter_activity)]
-        
-        if filter_billable == "Billable Only":
-            filtered_df = filtered_df[filtered_df['billable']]
-        elif filter_billable == "Non-Billable Only":
-            filtered_df = filtered_df[~filtered_df['billable']]
-        
-        # Display timesheet entries
-        if not filtered_df.empty:
-            # Summary metrics
-            total_filtered_hours = filtered_df['duration_hours'].sum()
-            billable_filtered_hours = filtered_df[filtered_df['billable']]['duration_hours'].sum()
+            
+            recent_entries = df.sort_values('start', ascending=False).head(5)
+            
+            if not recent_entries.empty:
+                for _, entry in recent_entries.iterrows():
+                    st.markdown(f"""
+                    <div class="timesheet-entry">
+                        <div class="timesheet-date">{entry['start'].strftime('%Y-%m-%d %H:%M')}</div>
+                        <div class="timesheet-client">{entry['job']}</div>
+                        <div class="timesheet-description">{entry['notes']}</div>
+                        <div class="timesheet-duration">{format_duration_hours(entry['duration'])} hours</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.info("No recent activity in the selected date range.")
+            
+            # Quick actions
+            colored_header(
+                label="Quick Actions",
+                description="Common tasks and actions",
+                color_name="blue-70"
+            )
             
             col1, col2, col3 = st.columns(3)
             
             with col1:
-                st.metric("Total Entries", len(filtered_df))
+                if st.button("Add Timesheet Entry"):
+                    st.session_state.current_view = "Timesheets"
+                    st.experimental_rerun()
             
             with col2:
-                st.metric("Total Hours", f"{total_filtered_hours:.2f}")
+                if st.button("View All Projects"):
+                    st.session_state.current_view = "Projects"
+                    st.experimental_rerun()
             
             with col3:
-                st.metric("Billable Hours", f"{billable_filtered_hours:.2f} ({billable_filtered_hours/total_filtered_hours*100:.1f}%)")
-            
-            # Download links
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.markdown(get_download_link(filtered_df, "timesheet_entries.csv", "Download as CSV"), unsafe_allow_html=True)
-            
-            with col2:
-                st.markdown(get_excel_download_link(filtered_df, "timesheet_entries.xlsx", "Download as Excel"), unsafe_allow_html=True)
-            
-            # Display as table
-            st.dataframe(
-                filtered_df[['date', 'client', 'description', 'duration_hours', 'billable', 'billed', 'notes']].rename(columns={
-                    'date': 'Date',
-                    'client': 'Client',
-                    'description': 'Activity',
-                    'duration_hours': 'Hours',
-                    'billable': 'Billable',
-                    'billed': 'Billed',
-                    'notes': 'Notes'
-                }),
-                use_container_width=True
-            )
-        else:
-            st.info("No timesheet entries found with the selected filters.")
+                if st.button("Generate Reports"):
+                    st.session_state.current_view = "Reports"
+                    st.experimental_rerun()
     
-    # Clients View
-    elif st.session_state.current_view == "Clients":
-        st.title("Clients")
+    # Timesheets View
+    elif st.session_state.current_view == "Timesheets":
+        st.title("Timesheets")
+        st.write(f"Showing data from **{start_date.strftime('%Y-%m-%d')}** to **{end_date.strftime('%Y-%m-%d')}**")
         
-        # Add new client
-        with st.expander("Add New Client", expanded=False):
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                new_client_name = st.text_input("Client Name")
-                new_client_contact = st.text_input("Contact Person")
-                new_client_email = st.text_input("Email")
-            
-            with col2:
-                new_client_phone = st.text_input("Phone")
-                new_client_address = st.text_area("Address", height=100)
-            
-            new_client_notes = st.text_area("Notes", height=100)
-            new_client_active = st.checkbox("Active", value=True)
-            
-            if st.button("Save Client"):
-                if new_client_name and new_client_email:
-                    st.success(f"Client '{new_client_name}' saved successfully!")
-                    # In a real app, this would save to the TSheets API
-                else:
-                    st.error("Client name and email are required.")
-        
-        # Search clients
-        search_query = st.text_input("Search Clients", placeholder="Search by name, contact, or email")
-        filtered_clients = search_clients(search_query, clients)
-        
-        # Display clients
-        if filtered_clients:
-            # Client cards
-            for i in range(0, len(filtered_clients), 3):
-                cols = st.columns(3)
-                for j in range(3):
-                    if i + j < len(filtered_clients):
-                        client = filtered_clients[i + j]
-                        with cols[j]:
-                            st.markdown(f"""
-                            <div class="client-card">
-                                <div class="client-name">{client['name']}</div>
-                                <div class="client-info"><strong>Contact:</strong> {client['contact']}</div>
-                                <div class="client-info"><strong>Email:</strong> {client['email']}</div>
-                                <div class="client-info"><strong>Phone:</strong> {client['phone']}</div>
-                                <div class="client-info"><strong>Status:</strong> {'Active' if client['active'] else 'Inactive'}</div>
-                            </div>
-                            """, unsafe_allow_html=True)
-                            
-                            if st.button(f"View Details #{client['id']}"):
-                                st.session_state.selected_client = client
-                                st.experimental_rerun()
+        if not st.session_state.data_loaded:
+            if loading_lottie:
+                st_lottie(loading_lottie, height=200, key="loading_animation")
+            st.info("Loading data from TSheets API. Please wait...")
+        elif st.session_state.timesheets_df is None or st.session_state.timesheets_df.empty:
+            if empty_lottie:
+                st_lottie(empty_lottie, height=200, key="empty_animation")
+            st.warning("No timesheet data available for the selected date range.")
         else:
-            st.info("No clients found matching your search criteria.")
-        
-        # Client details
-        if st.session_state.selected_client:
-            client = st.session_state.selected_client
+            # Add new timesheet entry
+            with st.expander("Add New Timesheet Entry", expanded=False):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    entry_date = st.date_input("Date", value=datetime.now().date())
+                    entry_start_time = st.time_input("Start Time", value=datetime.now().time())
+                    
+                    # Combine date and time
+                    entry_start_datetime = datetime.combine(entry_date, entry_start_time)
+                    
+                    # Duration or end time selection
+                    duration_type = st.radio("Entry Type", ["Duration", "End Time"])
+                
+                with col2:
+                    if st.session_state.users_df is not None and not st.session_state.users_df.empty:
+                        users = st.session_state.users_df
+                        if len(users) > 0 and 'id' in users.columns and 'full_name' in users.columns:
+                            entry_user = st.selectbox("User", options=users['id'].tolist(), format_func=lambda x: users[users['id'] == x]['full_name'].iloc[0] if len(users[users['id'] == x]) > 0 else f"User {x}")
+                        else:
+                            entry_user = st.session_state.current_user['id'] if st.session_state.current_user else ""
+                    else:
+                        entry_user = st.session_state.current_user['id'] if st.session_state.current_user else ""
+                    
+                    if st.session_state.jobcodes_df is not None and not st.session_state.jobcodes_df.empty:
+                        jobcodes = st.session_state.jobcodes_df
+                        if len(jobcodes) > 0 and 'id' in jobcodes.columns and 'name' in jobcodes.columns:
+                            entry_jobcode = st.selectbox("Project/Task", options=jobcodes[jobcodes['active']]['id'].tolist(), format_func=lambda x: jobcodes[jobcodes['id'] == x]['name'].iloc[0] if len(jobcodes[jobcodes['id'] == x]) > 0 else f"Jobcode {x}")
+                        else:
+                            entry_jobcode = ""
+                    else:
+                        entry_jobcode = ""
+                    
+                    if duration_type == "Duration":
+                        entry_duration = st.number_input("Duration (hours)", min_value=0.0, max_value=24.0, value=1.0, step=0.25)
+                        entry_end_datetime = entry_start_datetime + timedelta(hours=entry_duration)
+                    else:
+                        entry_end_time = st.time_input("End Time", value=(datetime.now() + timedelta(hours=1)).time())
+                        entry_end_datetime = datetime.combine(entry_date, entry_end_time)
+                        
+                        # Ensure end time is after start time
+                        if entry_end_datetime <= entry_start_datetime:
+                            st.error("End time must be after start time")
+                            entry_duration = 0
+                        else:
+                            entry_duration = (entry_end_datetime - entry_start_datetime).total_seconds() / 3600
+                
+                entry_notes = st.text_area("Notes", height=100)
+                
+                if st.button("Save Timesheet Entry"):
+                    if entry_jobcode and entry_duration > 0:
+                        try:
+                            # Prepare data for API
+                            timesheet_data = {
+                                "data": [
+                                    {
+                                        "user_id": int(entry_user),
+                                        "jobcode_id": int(entry_jobcode),
+                                        "start": int(entry_start_datetime.timestamp()),
+                                        "end": int(entry_end_datetime.timestamp()),
+                                        "notes": entry_notes
+                                    }
+                                ]
+                            }
+                            
+                            # Add timesheet entry
+                            result = st.session_state.api.add_timesheet(timesheet_data)
+                            
+                            if 'results' in result and 'timesheets' in result['results']:
+                                st.success("Timesheet entry saved successfully!")
+                                
+                                # Refresh data
+                                users_df, jobcodes_df, timesheets_df, error = load_data(st.session_state.api, start_date, end_date)
+                                
+                                if error:
+                                    st.session_state.error = error
+                                else:
+                                    st.session_state.users_df = users_df
+                                    st.session_state.jobcodes_df = jobcodes_df
+                                    st.session_state.timesheets_df = timesheets_df
+                                    st.session_state.data_loaded = True
+                                    st.session_state.last_refresh = datetime.now()
+                            else:
+                                st.error("Failed to save timesheet entry.")
+                        except TsheetsApiException as e:
+                            st.error(f"API Error: {str(e)}")
+                        except Exception as e:
+                            st.error(f"Unexpected error: {str(e)}")
+                    else:
+                        st.error("Please select a project and ensure duration is greater than 0.")
             
-            st.subheader(f"Client Details: {client['name']}")
+            # Filter options
+            df = st.session_state.timesheets_df
             
-            col1, col2 = st.columns(2)
+            with st.expander("Filter Options", expanded=True):
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    filter_jobcode = st.multiselect(
+                        "Filter by Project",
+                        options=sorted(df['job'].unique()),
+                        default=[]
+                    )
+                
+                with col2:
+                    if 'user' in df.columns:
+                        filter_user = st.multiselect(
+                            "Filter by User",
+                            options=sorted(df['user'].unique()),
+                            default=[]
+                        )
+                    else:
+                        filter_user = []
+                
+                with col3:
+                    filter_date_sort = st.radio("Sort by Date", options=["Newest First", "Oldest First"])
             
-            with col1:
-                st.write(f"**Contact Person:** {client['contact']}")
-                st.write(f"**Email:** {client['email']}")
-                st.write(f"**Phone:** {client['phone']}")
+            # Apply filters
+            filtered_df = df.copy()
             
-            with col2:
-                st.write(f"**Address:** {client['address']}")
-                st.write(f"**Status:** {'Active' if client['active'] else 'Inactive'}")
-                st.write(f"**Created:** {client['created_at']}")
+            if filter_jobcode:
+                filtered_df = filtered_df[filtered_df['job'].isin(filter_jobcode)]
             
-            st.write(f"**Notes:** {client['notes']}")
+            if filter_user and 'user' in filtered_df.columns:
+                filtered_df = filtered_df[filtered_df['user'].isin(filter_user)]
             
-            # Client timesheet entries
-            st.subheader("Timesheet Entries")
+            # Sort by date
+            if filter_date_sort == "Newest First":
+                filtered_df = filtered_df.sort_values('start', ascending=False)
+            else:
+                filtered_df = filtered_df.sort_values('start', ascending=True)
             
-            client_entries = df_timesheets_filtered[df_timesheets_filtered['client'] == client['name']]
-            
-            if not client_entries.empty:
-                total_client_hours = client_entries['duration_hours'].sum()
-                billable_client_hours = client_entries[client_entries['billable']]['duration_hours'].sum()
+            # Display timesheet entries
+            if not filtered_df.empty:
+                # Summary metrics
+                total_filtered_hours = filtered_df['duration_hours'].sum()
                 
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
-                    st.metric("Total Entries", len(client_entries))
+                    st.metric("Total Entries", len(filtered_df))
                 
                 with col2:
-                    st.metric("Total Hours", f"{total_client_hours:.2f}")
+                    st.metric("Total Hours", f"{total_filtered_hours:.2f}")
                 
                 with col3:
-                    st.metric("Billable Hours", f"{billable_client_hours:.2f} ({billable_client_hours/total_client_hours*100:.1f}%)")
+                    avg_entry_duration = total_filtered_hours / len(filtered_df) if len(filtered_df) > 0 else 0
+                    st.metric("Avg. Entry Duration", f"{avg_entry_duration:.2f} hrs")
                 
+                # Download links
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.markdown(get_download_link(filtered_df, "timesheet_entries.csv", "Download as CSV"), unsafe_allow_html=True)
+                
+                with col2:
+                    st.markdown(get_excel_download_link(filtered_df, "timesheet_entries.xlsx", "Download as Excel"), unsafe_allow_html=True)
+                
+                # Display as table with interactive features
                 st.dataframe(
-                    client_entries[['date', 'description', 'duration_hours', 'billable', 'billed', 'notes']].rename(columns={
-                        'date': 'Date',
-                        'description': 'Activity',
+                    filtered_df[['start', 'job', 'notes', 'duration_hours', 'user']].rename(columns={
+                        'start': 'Date & Time',
+                        'job': 'Project',
+                        'notes': 'Notes',
                         'duration_hours': 'Hours',
-                        'billable': 'Billable',
-                        'billed': 'Billed',
-                        'notes': 'Notes'
+                        'user': 'User'
                     }),
                     use_container_width=True
                 )
+                
+                # Pagination
+                if len(filtered_df) > 20:
+                    st.write(f"Showing {min(20, len(filtered_df))} of {len(filtered_df)} entries")
             else:
-                st.info("No timesheet entries found for this client in the selected date range.")
+                if empty_lottie:
+                    st_lottie(empty_lottie, height=200, key="empty_results_animation")
+                st.info("No timesheet entries found with the selected filters.")
+    
+    # Projects View
+    elif st.session_state.current_view == "Projects":
+        st.title("Projects")
+        
+        if not st.session_state.data_loaded:
+            if loading_lottie:
+                st_lottie(loading_lottie, height=200, key="loading_animation")
+            st.info("Loading data from TSheets API. Please wait...")
+        elif st.session_state.jobcodes_df is None or st.session_state.jobcodes_df.empty:
+            if empty_lottie:
+                st_lottie(empty_lottie, height=200, key="empty_animation")
+            st.warning("No project data available.")
+        else:
+            df_jobcodes = st.session_state.jobcodes_df
+            df_timesheets = st.session_state.timesheets_df
             
-            if st.button("Back to Clients List"):
-                st.session_state.selected_client = None
-                st.experimental_rerun()
+            # Search and filter
+            col1, col2 = st.columns([3, 1])
+            
+            with col1:
+                search_query = st.text_input("Search Projects", placeholder="Enter project name...")
+            
+            with col2:
+                show_inactive = st.checkbox("Show Inactive", value=False)
+            
+            # Filter jobcodes based on search and active status
+            filtered_jobcodes = df_jobcodes.copy()
+            
+            if not show_inactive:
+                filtered_jobcodes = filtered_jobcodes[filtered_jobcodes['active']]
+            
+            if search_query:
+                filtered_jobcodes = filtered_jobcodes[filtered_jobcodes['name'].str.contains(search_query, case=False)]
+            
+            # Display projects
+            if not filtered_jobcodes.empty:
+                # Calculate hours by project
+                if not df_timesheets.empty and 'jobcode_id' in df_timesheets.columns and 'duration_hours' in df_timesheets.columns:
+                    hours_by_jobcode = df_timesheets.groupby('jobcode_id')['duration_hours'].sum().reset_index()
+                    hours_by_jobcode.columns = ['id', 'hours']
+                    
+                    # Convert id to string for merging
+                    hours_by_jobcode['id'] = hours_by_jobcode['id'].astype(str)
+                    filtered_jobcodes['id'] = filtered_jobcodes['id'].astype(str)
+                    
+                    # Merge with filtered_jobcodes
+                    filtered_jobcodes = pd.merge(filtered_jobcodes, hours_by_jobcode, on='id', how='left')
+                    filtered_jobcodes['hours'] = filtered_jobcodes['hours'].fillna(0)
+                else:
+                    filtered_jobcodes['hours'] = 0
+                
+                # Sort by hours (descending)
+                filtered_jobcodes = filtered_jobcodes.sort_values('hours', ascending=False)
+                
+                # Project cards
+                for i in range(0, len(filtered_jobcodes), 3):
+                    cols = st.columns(3)
+                    for j in range(3):
+                        if i + j < len(filtered_jobcodes):
+                            jobcode = filtered_jobcodes.iloc[i + j]
+                            with cols[j]:
+                                active_badge = '<span class="badge badge-success">Active</span>' if jobcode['active'] else '<span class="badge badge-secondary">Inactive</span>'
+                                billable_badge = '<span class="badge badge-primary">Billable</span>' if jobcode.get('billable', False) else ''
+                                
+                                st.markdown(f"""
+                                <div class="client-card" onclick="alert('View details for {jobcode['name']}')">
+                                    <div class="client-name">{jobcode['name']} {active_badge} {billable_badge}</div>
+                                    <div class="client-info"><strong>Hours:</strong> {jobcode['hours']:.2f}</div>
+                                    <div class="client-info"><strong>Created:</strong> {jobcode['created'].strftime('%Y-%m-%d')}</div>
+                                    <div class="client-info"><strong>Last Modified:</strong> {jobcode['last_modified'].strftime('%Y-%m-%d')}</div>
+                                </div>
+                                """, unsafe_allow_html=True)
+                                
+                                if st.button(f"View Details #{jobcode['id']}"):
+                                    st.session_state.selected_jobcode = jobcode
+                                    st.experimental_rerun()
+            else:
+                if empty_lottie:
+                    st_lottie(empty_lottie, height=200, key="empty_results_animation")
+                st.info("No projects found matching your search criteria.")
+            
+            # Project details
+            if st.session_state.selected_jobcode is not None:
+                jobcode = st.session_state.selected_jobcode
+                
+                st.subheader(f"Project Details: {jobcode['name']}")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.write(f"**ID:** {jobcode['id']}")
+                    st.write(f"**Type:** {jobcode['type']}")
+                    st.write(f"**Billable:** {'Yes' if jobcode.get('billable', False) else 'No'}")
+                
+                with col2:
+                    st.write(f"**Created:** {jobcode['created'].strftime('%Y-%m-%d')}")
+                    st.write(f"**Last Modified:** {jobcode['last_modified'].strftime('%Y-%m-%d')}")
+                    st.write(f"**Status:** {'Active' if jobcode['active'] else 'Inactive'}")
+                
+                # Project timesheet entries
+                st.subheader("Timesheet Entries")
+                
+                if not df_timesheets.empty and 'jobcode_id' in df_timesheets.columns:
+                    project_entries = df_timesheets[df_timesheets['jobcode_id'] == int(jobcode['id'])]
+                    
+                    if not project_entries.empty:
+                        total_project_hours = project_entries['duration_hours'].sum()
+                        
+                        col1, col2, col3 = st.columns(3)
+                        
+                        with col1:
+                            st.metric("Total Entries", len(project_entries))
+                        
+                        with col2:
+                            st.metric("Total Hours", f"{total_project_hours:.2f}")
+                        
+                        with col3:
+                            avg_entry_duration = total_project_hours / len(project_entries) if len(project_entries) > 0 else 0
+                            st.metric("Avg. Entry Duration", f"{avg_entry_duration:.2f} hrs")
+                        
+                        # Display as table
+                        st.dataframe(
+                            project_entries[['start', 'notes', 'duration_hours', 'user']].rename(columns={
+                                'start': 'Date & Time',
+                                'notes': 'Notes',
+                                'duration_hours': 'Hours',
+                                'user': 'User'
+                            }),
+                            use_container_width=True
+                        )
+                    else:
+                        st.info("No timesheet entries found for this project in the selected date range.")
+                else:
+                    st.info("No timesheet data available.")
+                
+                if st.button("Back to Projects List"):
+                    st.session_state.selected_jobcode = None
+                    st.experimental_rerun()
     
     # Calendar View
     elif st.session_state.current_view == "Calendar":
         st.title("Calendar")
         
-        # Calendar view options
-        col1, col2 = st.columns([1, 3])
-        
-        with col1:
-            calendar_view_option = st.radio("Calendar View", ["Month", "Week", "Day", "List"])
-            st.session_state.calendar_view = calendar_view_option.lower()
+        if not st.session_state.data_loaded:
+            if loading_lottie:
+                st_lottie(loading_lottie, height=200, key="loading_animation")
+            st.info("Loading data from TSheets API. Please wait...")
+        elif st.session_state.timesheets_df is None or st.session_state.timesheets_df.empty:
+            if empty_lottie:
+                st_lottie(empty_lottie, height=200, key="empty_animation")
+            st.warning("No timesheet data available for the calendar view.")
+        else:
+            # Calendar view options
+            col1, col2 = st.columns([1, 3])
             
-            # Month/Year selector for month view
-            if calendar_view_option == "Month":
-                current_date = st.session_state.calendar_date
-                current_month = current_date.month
-                current_year = current_date.year
+            with col1:
+                calendar_view_option = st.radio("Calendar View", ["Month", "Week", "Day", "List"])
+                st.session_state.calendar_view = calendar_view_option.lower()
                 
-                selected_month = st.selectbox("Month", options=list(range(1, 13)), index=current_month-1, format_func=lambda x: calendar.month_name[x])
-                selected_year = st.selectbox("Year", options=list(range(current_year-5, current_year+6)), index=5)
+                # Month/Year selector for month view
+                if calendar_view_option == "Month":
+                    current_date = st.session_state.calendar_date
+                    current_month = current_date.month
+                    current_year = current_date.year
+                    
+                    selected_month = st.selectbox("Month", options=list(range(1, 13)), index=current_month-1, format_func=lambda x: calendar.month_name[x])
+                    selected_year = st.selectbox("Year", options=list(range(current_year-5, current_year+6)), index=5)
+                    
+                    if selected_month != current_month or selected_year != current_year:
+                        st.session_state.calendar_date = date(selected_year, selected_month, 1)
                 
-                if selected_month != current_month or selected_year != current_year:
-                    st.session_state.calendar_date = date(selected_year, selected_month, 1)
-        
-        with col2:
-            # Calendar component
-            calendar_events = generate_calendar_events(df_timesheets)
+                # Filter options
+                if 'job' in st.session_state.timesheets_df.columns:
+                    filter_jobcode_cal = st.multiselect(
+                        "Filter by Project",
+                        options=sorted(st.session_state.timesheets_df['job'].unique()),
+                        default=[]
+                    )
+                else:
+                    filter_jobcode_cal = []
+                
+                if 'user' in st.session_state.timesheets_df.columns:
+                    filter_user_cal = st.multiselect(
+                        "Filter by User",
+                        options=sorted(st.session_state.timesheets_df['user'].unique()),
+                        default=[]
+                    )
+                else:
+                    filter_user_cal = []
             
-            calendar_options = {
-                "headerToolbar": {
-                    "left": "prev,next today",
-                    "center": "title",
-                    "right": "dayGridMonth,timeGridWeek,timeGridDay,listMonth"
-                },
-                "initialDate": st.session_state.calendar_date.isoformat(),
-                "initialView": st.session_state.calendar_view + "GridMonth" if st.session_state.calendar_view != "list" else "listMonth",
-                "selectable": True,
-                "editable": False,
-                "dayMaxEvents": True,
-                "weekNumbers": True,
-                "navLinks": True,
-                "businessHours": {
-                    "daysOfWeek": [1, 2, 3, 4, 5],
-                    "startTime": "09:00",
-                    "endTime": "17:00"
-                },
-                "eventTimeFormat": {
-                    "hour": "2-digit",
-                    "minute": "2-digit",
-                    "meridiem": False
+            with col2:
+                # Apply filters to timesheet data
+                filtered_cal_df = st.session_state.timesheets_df.copy()
+                
+                if filter_jobcode_cal:
+                    filtered_cal_df = filtered_cal_df[filtered_cal_df['job'].isin(filter_jobcode_cal)]
+                
+                if filter_user_cal and 'user' in filtered_cal_df.columns:
+                    filtered_cal_df = filtered_cal_df[filtered_cal_df['user'].isin(filter_user_cal)]
+                
+                # Calendar component
+                calendar_events = generate_calendar_events(filtered_cal_df)
+                
+                calendar_options = {
+                    "headerToolbar": {
+                        "left": "prev,next today",
+                        "center": "title",
+                        "right": "dayGridMonth,timeGridWeek,timeGridDay,listMonth"
+                    },
+                    "initialDate": st.session_state.calendar_date.isoformat(),
+                    "initialView": st.session_state.calendar_view + "GridMonth" if st.session_state.calendar_view != "list" else "listMonth",
+                    "selectable": True,
+                    "editable": False,
+                    "dayMaxEvents": True,
+                    "weekNumbers": True,
+                    "navLinks": True,
+                    "businessHours": {
+                        "daysOfWeek": [1, 2, 3, 4, 5],
+                        "startTime": "09:00",
+                        "endTime": "17:00"
+                    },
+                    "eventTimeFormat": {
+                        "hour": "2-digit",
+                        "minute": "2-digit",
+                        "meridiem": False
+                    }
                 }
-            }
-            
-            calendar_result = calendar(events=calendar_events, options=calendar_options, key="calendar")
-            
-            if calendar_result.get("eventClick"):
-                event_id = calendar_result.get("eventClick")["event"]["id"]
-                st.write(f"Clicked on event {event_id}")
-                # In a real app, show event details or allow editing
-        
-        # Alternative calendar view (custom grid)
-        if calendar_view_option == "Month":
-            st.subheader("Monthly Hours Summary")
-            
-            # Get calendar data
-            current_date = st.session_state.calendar_date
-            calendar_data = get_month_calendar_data(current_date.year, current_date.month, df_timesheets)
-            
-            # Display calendar grid
-            st.markdown("<div style='display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;'>", unsafe_allow_html=True)
-            
-            # Day headers
-            for day in ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]:
-                st.markdown(f"<div class='calendar-day-header'>{day}</div>", unsafe_allow_html=True)
-            
-            # Calendar days
-            for date_info in calendar_data:
-                day_class = "calendar-day"
-                if date_info["current_month"]:
-                    day_class += " calendar-day-current"
-                if date_info["has_entries"]:
-                    day_class += " calendar-day-has-entries"
                 
-                hours_text = f"{date_info['hours']:.1f}h" if date_info["hours"] > 0 else ""
+                calendar_result = calendar(events=calendar_events, options=calendar_options, key="calendar")
                 
-                st.markdown(
-                    f"<div class='{day_class}'>{date_info['day']}<br/>{hours_text}</div>",
-                    unsafe_allow_html=True
-                )
-            
-            st.markdown("</div>", unsafe_allow_html=True)
+                if calendar_result.get("eventClick"):
+                    event_id = calendar_result.get("eventClick")["event"]["id"]
+                    event_props = calendar_result.get("eventClick")["event"]["extendedProps"]
+                    
+                    # Show event details
+                    st.markdown("### Event Details")
+                    st.write(f"**Project:** {event_props['jobcode']}")
+                    st.write(f"**Notes:** {event_props['notes']}")
+                    st.write(f"**Duration:** {event_props['duration']}")
+                    if 'user' in event_props:
+                        st.write(f"**User:** {event_props['user']}")
     
     # Reports View
     elif st.session_state.current_view == "Reports":
         st.title("Reports")
         
-        # Report types
-        report_type = st.selectbox(
-            "Report Type",
-            options=["Time Summary", "Client Summary", "Activity Summary", "Billable Hours", "Unbilled Time"]
-        )
-        
-        # Time Summary Report
-        if report_type == "Time Summary":
-            st.subheader("Time Summary Report")
-            st.write(f"Period: **{start_date}** to **{end_date}**")
-            
-            # Summary metrics
-            total_hours = df_timesheets_filtered['duration_hours'].sum()
-            billable_hours = df_timesheets_filtered[df_timesheets_filtered['billable']]['duration_hours'].sum()
-            billed_hours = df_timesheets_filtered[df_timesheets_filtered['billed']]['duration_hours'].sum()
-            
-            col1, col2, col3, col4 = st.columns(4)
-            
-            with col1:
-                st.metric("Total Hours", f"{total_hours:.2f}")
-            
-            with col2:
-                st.metric("Billable Hours", f"{billable_hours:.2f} ({billable_hours/total_hours*100:.1f}%)")
-            
-            with col3:
-                st.metric("Billed Hours", f"{billed_hours:.2f} ({billed_hours/total_hours*100:.1f}%)")
-            
-            with col4:
-                st.metric("Unbilled Hours", f"{billable_hours - billed_hours:.2f}")
-            
-            # Time by day chart
-            st.subheader("Time by Day")
-            
-            hours_by_day = df_timesheets_filtered.groupby(df_timesheets_filtered['date'].dt.date)['duration_hours'].sum().reset_index()
-            hours_by_day = hours_by_day.sort_values('date')
-            
-            fig = px.bar(
-                hours_by_day,
-                x='date',
-                y='duration_hours',
-                labels={'date': 'Date', 'duration_hours': 'Hours'},
-                color_discrete_sequence=['#4e89ae']
+        if not st.session_state.data_loaded:
+            if loading_lottie:
+                st_lottie(loading_lottie, height=200, key="loading_animation")
+            st.info("Loading data from TSheets API. Please wait...")
+        elif st.session_state.timesheets_df is None or st.session_state.timesheets_df.empty:
+            if empty_lottie:
+                st_lottie(empty_lottie, height=200, key="empty_animation")
+            st.warning("No timesheet data available for reports.")
+        else:
+            # Report types
+            report_type = st.selectbox(
+                "Report Type",
+                options=["Time Summary", "Project Summary", "User Summary", "Daily Time Log"]
             )
-            fig.update_layout(height=400)
-            st.plotly_chart(fig, use_container_width=True)
             
-            # Time by weekday chart
-            st.subheader("Time by Weekday")
-            
-            df_timesheets_filtered['weekday'] = df_timesheets_filtered['date'].dt.day_name()
-            hours_by_weekday = df_timesheets_filtered.groupby('weekday')['duration_hours'].sum().reset_index()
-            
-            # Ensure correct order of weekdays
-            weekday_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-            hours_by_weekday['weekday'] = pd.Categorical(hours_by_weekday['weekday'], categories=weekday_order, ordered=True)
-            hours_by_weekday = hours_by_weekday.sort_values('weekday')
-            
-            fig = px.bar(
-                hours_by_weekday,
-                x='weekday',
-                y='duration_hours',
-                labels={'weekday': 'Weekday', 'duration_hours': 'Hours'},
-                color_discrete_sequence=['#4e89ae']
-            )
-            fig.update_layout(height=400)
-            st.plotly_chart(fig, use_container_width=True)
-            
-            # Download report
-            st.markdown(get_excel_download_link(df_timesheets_filtered, "time_summary_report.xlsx", "Download Full Report"), unsafe_allow_html=True)
-        
-        # Client Summary Report
-        elif report_type == "Client Summary":
-            st.subheader("Client Summary Report")
-            st.write(f"Period: **{start_date}** to **{end_date}**")
-            
-            # Hours by client
-            hours_by_client = df_timesheets_filtered.groupby('client')['duration_hours'].sum().reset_index()
-            hours_by_client = hours_by_client.sort_values('duration_hours', ascending=False)
-            
-            # Client metrics
-            total_clients = hours_by_client.shape[0]
-            top_client = hours_by_client.iloc[0]['client'] if not hours_by_client.empty else "N/A"
-            top_client_hours = hours_by_client.iloc[0]['duration_hours'] if not hours_by_client.empty else 0
-            
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                st.metric("Total Clients", total_clients)
-            
-            with col2:
-                st.metric("Top Client", top_client)
-            
-            with col3:
-                st.metric("Top Client Hours", f"{top_client_hours:.2f}")
-            
-            # Hours by client chart
-            st.subheader("Hours by Client")
-            
-            fig = px.bar(
-                hours_by_client,
-                x='client',
-                y='duration_hours',
-                labels={'client': 'Client', 'duration_hours': 'Hours'},
-                color='duration_hours',
-                color_continuous_scale=px.colors.sequential.Blues
-            )
-            fig.update_layout(height=400)
-            st.plotly_chart(fig, use_container_width=True)
-            
-            # Client details table
-            st.subheader("Client Details")
-            
-            client_details = []
-            for client_name in hours_by_client['client']:
-                client_df = df_timesheets_filtered[df_timesheets_filtered['client'] == client_name]
-                total_hours = client_df['duration_hours'].sum()
-                billable_hours = client_df[client_df['billable']]['duration_hours'].sum()
-                billed_hours = client_df[client_df['billed']]['duration_hours'].sum()
+            # Time Summary Report
+            if report_type == "Time Summary":
+                st.subheader("Time Summary Report")
+                st.write(f"Period: **{start_date.strftime('%Y-%m-%d')}** to **{end_date.strftime('%Y-%m-%d')}**")
                 
-                client_details.append({
-                    'Client': client_name,
-                    'Total Hours': f"{total_hours:.2f}",
-                    'Billable Hours': f"{billable_hours:.2f}",
-                    'Billed Hours': f"{billed_hours:.2f}",
-                    'Unbilled Hours': f"{billable_hours - billed_hours:.2f}",
-                    'Billable %': f"{billable_hours/total_hours*100:.1f}%" if total_hours > 0 else "0%"
-                })
-            
-            st.dataframe(pd.DataFrame(client_details), use_container_width=True)
-            
-            # Download report
-            st.markdown(get_excel_download_link(pd.DataFrame(client_details), "client_summary_report.xlsx", "Download Client Summary"), unsafe_allow_html=True)
-        
-        # Activity Summary Report
-        elif report_type == "Activity Summary":
-            st.subheader("Activity Summary Report")
-            st.write(f"Period: **{start_date}** to **{end_date}**")
-            
-            # Hours by activity
-            hours_by_activity = df_timesheets_filtered.groupby('description')['duration_hours'].sum().reset_index()
-            hours_by_activity = hours_by_activity.sort_values('duration_hours', ascending=False)
-            
-            # Activity metrics
-            total_activities = hours_by_activity.shape[0]
-            top_activity = hours_by_activity.iloc[0]['description'] if not hours_by_activity.empty else "N/A"
-            top_activity_hours = hours_by_activity.iloc[0]['duration_hours'] if not hours_by_activity.empty else 0
-            
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                st.metric("Total Activities", total_activities)
-            
-            with col2:
-                st.metric("Top Activity", top_activity)
-            
-            with col3:
-                st.metric("Top Activity Hours", f"{top_activity_hours:.2f}")
-            
-            # Hours by activity chart
-            st.subheader("Hours by Activity")
-            
-            fig = px.pie(
-                hours_by_activity,
-                values='duration_hours',
-                names='description',
-                color_discrete_sequence=px.colors.sequential.Blues
-            )
-            fig.update_layout(height=400)
-            st.plotly_chart(fig, use_container_width=True)
-            
-            # Activity details table
-            st.subheader("Activity Details")
-            
-            activity_details = []
-            for activity in hours_by_activity['description']:
-                activity_df = df_timesheets_filtered[df_timesheets_filtered['description'] == activity]
-                total_hours = activity_df['duration_hours'].sum()
-                billable_hours = activity_df[activity_df['billable']]['duration_hours'].sum()
+                df = st.session_state.timesheets_df
                 
-                activity_details.append({
-                    'Activity': activity,
-                    'Total Hours': f"{total_hours:.2f}",
-                    'Billable Hours': f"{billable_hours:.2f}",
-                    'Billable %': f"{billable_hours/total_hours*100:.1f}%" if total_hours > 0 else "0%",
-                    'Clients': activity_df['client'].nunique()
-                })
+                # Summary metrics
+                total_hours = df['duration_hours'].sum()
+                
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.metric("Total Hours", f"{total_hours:.2f}")
+                
+                with col2:
+                    st.metric("Total Entries", len(df))
+                
+                with col3:
+                    avg_daily_hours = total_hours / max((end_date - start_date).days + 1, 1)
+                    st.metric("Avg. Daily Hours", f"{avg_daily_hours:.2f}")
+                
+                # Time by day chart
+                st.subheader("Time by Day")
+                
+                df['date_only'] = df['start'].dt.date
+                hours_by_day = df.groupby('date_only')['duration_hours'].sum().reset_index()
+                hours_by_day = hours_by_day.sort_values('date_only')
+                
+                fig = px.bar(
+                    hours_by_day,
+                    x='date_only',
+                    y='duration_hours',
+                    labels={'date_only': 'Date', 'duration_hours': 'Hours'},
+                    color_discrete_sequence=['#4e89ae']
+                )
+                fig.update_layout(height=400)
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # Time by weekday chart
+                st.subheader("Time by Weekday")
+                
+                df['weekday'] = df['start'].dt.day_name()
+                hours_by_weekday = df.groupby('weekday')['duration_hours'].sum().reset_index()
+                
+                # Ensure correct order of weekdays
+                weekday_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+                hours_by_weekday['weekday'] = pd.Categorical(hours_by_weekday['weekday'], categories=weekday_order, ordered=True)
+                hours_by_weekday = hours_by_weekday.sort_values('weekday')
+                
+                fig = px.bar(
+                    hours_by_weekday,
+                    x='weekday',
+                    y='duration_hours',
+                    labels={'weekday': 'Weekday', 'duration_hours': 'Hours'},
+                    color_discrete_sequence=['#4e89ae']
+                )
+                fig.update_layout(height=400)
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # Download report
+                st.markdown(get_excel_download_link(df, "time_summary_report.xlsx", "Download Full Report"), unsafe_allow_html=True)
             
-            st.dataframe(pd.DataFrame(activity_details), use_container_width=True)
+            # Project Summary Report
+            elif report_type == "Project Summary":
+                st.subheader("Project Summary Report")
+                st.write(f"Period: **{start_date.strftime('%Y-%m-%d')}** to **{end_date.strftime('%Y-%m-%d')}**")
+                
+                df = st.session_state.timesheets_df
+                
+                # Hours by jobcode
+                hours_by_jobcode = df.groupby('job')['duration_hours'].sum().reset_index()
+                hours_by_jobcode = hours_by_jobcode.sort_values('duration_hours', ascending=False)
+                
+                # Project metrics
+                total_projects = hours_by_jobcode.shape[0]
+                top_project = hours_by_jobcode.iloc[0]['job'] if not hours_by_jobcode.empty else "N/A"
+                top_project_hours = hours_by_jobcode.iloc[0]['duration_hours'] if not hours_by_jobcode.empty else 0
+                
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.metric("Total Projects", total_projects)
+                
+                with col2:
+                    st.metric("Top Project", top_project)
+                
+                with col3:
+                    st.metric("Top Project Hours", f"{top_project_hours:.2f}")
+                
+                # Hours by project chart
+                st.subheader("Hours by Project")
+                
+                fig = px.bar(
+                    hours_by_jobcode.head(10),
+                    x='job',
+                    y='duration_hours',
+                    labels={'job': 'Project', 'duration_hours': 'Hours'},
+                    color='duration_hours',
+                    color_continuous_scale=px.colors.sequential.Blues
+                )
+                fig.update_layout(height=400)
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # Project details table
+                st.subheader("Project Details")
+                
+                # Add user counts per project if user column exists
+                if 'user' in df.columns:
+                    project_users = df.groupby('job')['user'].nunique().reset_index()
+                    project_users.columns = ['job', 'unique_users']
+                    hours_by_jobcode = pd.merge(hours_by_jobcode, project_users, on='job', how='left')
+                else:
+                    hours_by_jobcode['unique_users'] = 1
+                
+                st.dataframe(
+                    hours_by_jobcode.rename(columns={
+                        'job': 'Project',
+                        'duration_hours': 'Hours',
+                        'unique_users': 'Users'
+                    }),
+                    use_container_width=True
+                )
+                
+                # Download report
+                st.markdown(get_excel_download_link(hours_by_jobcode, "project_summary_report.xlsx", "Download Project Summary"), unsafe_allow_html=True)
             
-            # Download report
-            st.markdown(get_excel_download_link(pd.DataFrame(activity_details), "activity_summary_report.xlsx", "Download Activity Summary"), unsafe_allow_html=True)
-        
-        # Billable Hours Report
-        elif report_type == "Billable Hours":
-            st.subheader("Billable Hours Report")
-            st.write(f"Period: **{start_date}** to **{end_date}**")
+            # User Summary Report
+            elif report_type == "User Summary":
+                st.subheader("User Summary Report")
+                st.write(f"Period: **{start_date.strftime('%Y-%m-%d')}** to **{end_date.strftime('%Y-%m-%d')}**")
+                
+                df = st.session_state.timesheets_df
+                
+                if 'user' in df.columns:
+                    # Hours by user
+                    hours_by_user = df.groupby('user')['duration_hours'].sum().reset_index()
+                    hours_by_user = hours_by_user.sort_values('duration_hours', ascending=False)
+                    
+                    # User metrics
+                    total_users = hours_by_user.shape[0]
+                    top_user = hours_by_user.iloc[0]['user'] if not hours_by_user.empty else "N/A"
+                    top_user_hours = hours_by_user.iloc[0]['duration_hours'] if not hours_by_user.empty else 0
+                    
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        st.metric("Total Users", total_users)
+                    
+                    with col2:
+                        st.metric("Top User", top_user)
+                    
+                    with col3:
+                        st.metric("Top User Hours", f"{top_user_hours:.2f}")
+                    
+                    # Hours by user chart
+                    st.subheader("Hours by User")
+                    
+                    fig = px.bar(
+                        hours_by_user,
+                        x='user',
+                        y='duration_hours',
+                        labels={'user': 'User', 'duration_hours': 'Hours'},
+                        color='duration_hours',
+                        color_continuous_scale=px.colors.sequential.Blues
+                    )
+                    fig.update_layout(height=400)
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    # Add project counts per user
+                    user_projects = df.groupby('user')['job'].nunique().reset_index()
+                    user_projects.columns = ['user', 'unique_projects']
+                    hours_by_user = pd.merge(hours_by_user, user_projects, on='user', how='left')
+                    
+                    # User details table
+                    st.subheader("User Details")
+                    
+                    st.dataframe(
+                        hours_by_user.rename(columns={
+                            'user': 'User',
+                            'duration_hours': 'Hours',
+                            'unique_projects': 'Projects'
+                        }),
+                        use_container_width=True
+                    )
+                    
+                    # Download report
+                    st.markdown(get_excel_download_link(hours_by_user, "user_summary_report.xlsx", "Download User Summary"), unsafe_allow_html=True)
+                else:
+                    st.warning("User data not available in the timesheet entries.")
             
-            # Filter for billable entries
-            billable_df = df_timesheets_filtered[df_timesheets_filtered['billable']]
-            
-            # Billable metrics
-            total_hours = df_timesheets_filtered['duration_hours'].sum()
-            billable_hours = billable_df['duration_hours'].sum()
-            billed_hours = billable_df[billable_df['billed']]['duration_hours'].sum()
-            unbilled_hours = billable_hours - billed_hours
-            
-            col1, col2, col3, col4 = st.columns(4)
-            
-            with col1:
-                st.metric("Total Hours", f"{total_hours:.2f}")
-            
-            with col2:
-                st.metric("Billable Hours", f"{billable_hours:.2f} ({billable_hours/total_hours*100:.1f}%)")
-            
-            with col3:
-                st.metric("Billed Hours", f"{billed_hours:.2f} ({billed_hours/billable_hours*100:.1f}%)")
-            
-            with col4:
-                st.metric("Unbilled Hours", f"{unbilled_hours:.2f}")
-            
-            # Billable vs. Non-billable chart
-            st.subheader("Billable vs. Non-billable Hours")
-            
-            billable_data = [
-                {'Category': 'Billable', 'Hours': billable_hours},
-                {'Category': 'Non-billable', 'Hours': total_hours - billable_hours}
-            ]
-            
-            fig = px.pie(
-                billable_data,
-                values='Hours',
-                names='Category',
-                color='Category',
-                color_discrete_map={'Billable': '#4e89ae', 'Non-billable': '#e9ecef'}
-            )
-            fig.update_layout(height=400)
-            st.plotly_chart(fig, use_container_width=True)
-            
-            # Billable hours by client
-            st.subheader("Billable Hours by Client")
-            
-            billable_by_client = billable_df.groupby('client')['duration_hours'].sum().reset_index()
-            billable_by_client = billable_by_client.sort_values('duration_hours', ascending=False)
-            
-            fig = px.bar(
-                billable_by_client,
-                x='client',
-                y='duration_hours',
-                labels={'client': 'Client', 'duration_hours': 'Billable Hours'},
-                color_discrete_sequence=['#4e89ae']
-            )
-            fig.update_layout(height=400)
-            st.plotly_chart(fig, use_container_width=True)
-            
-            # Billable entries table
-            st.subheader("Billable Entries")
-            
-            st.dataframe(
-                billable_df[['date', 'client', 'description', 'duration_hours', 'billed']].rename(columns={
-                    'date': 'Date',
-                    'client': 'Client',
-                    'description': 'Activity',
-                    'duration_hours': 'Hours',
-                    'billed': 'Billed'
-                }),
-                use_container_width=True
-            )
-            
-            # Download report
-            st.markdown(get_excel_download_link(billable_df, "billable_hours_report.xlsx", "Download Billable Hours Report"), unsafe_allow_html=True)
-        
-        # Unbilled Time Report
-        elif report_type == "Unbilled Time":
-            st.subheader("Unbilled Time Report")
-            st.write(f"Period: **{start_date}** to **{end_date}**")
-            
-            # Filter for unbilled entries
-            unbilled_df = df_timesheets_filtered[(df_timesheets_filtered['billable']) & (~df_timesheets_filtered['billed'])]
-            
-            # Unbilled metrics
-            total_billable_hours = df_timesheets_filtered[df_timesheets_filtered['billable']]['duration_hours'].sum()
-            unbilled_hours = unbilled_df['duration_hours'].sum()
-            
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                st.metric("Total Billable Hours", f"{total_billable_hours:.2f}")
-            
-            with col2:
-                st.metric("Unbilled Hours", f"{unbilled_hours:.2f}")
-            
-            with col3:
-                st.metric("Unbilled %", f"{unbilled_hours/total_billable_hours*100:.1f}%" if total_billable_hours > 0 else "0%")
-            
-            # Unbilled hours by client
-            st.subheader("Unbilled Hours by Client")
-            
-            unbilled_by_client = unbilled_df.groupby('client')['duration_hours'].sum().reset_index()
-            unbilled_by_client = unbilled_by_client.sort_values('duration_hours', ascending=False)
-            
-            fig = px.bar(
-                unbilled_by_client,
-                x='client',
-                y='duration_hours',
-                labels={'client': 'Client', 'duration_hours': 'Unbilled Hours'},
-                color_discrete_sequence=['#dc3545']
-            )
-            fig.update_layout(height=400)
-            st.plotly_chart(fig, use_container_width=True)
-            
-            # Unbilled entries table
-            st.subheader("Unbilled Entries")
-            
-            st.dataframe(
-                unbilled_df[['date', 'client', 'description', 'duration_hours']].rename(columns={
-                    'date': 'Date',
-                    'client': 'Client',
-                    'description': 'Activity',
-                    'duration_hours': 'Hours'
-                }),
-                use_container_width=True
-            )
-            
-            # Download report
-            st.markdown(get_excel_download_link(unbilled_df, "unbilled_time_report.xlsx", "Download Unbilled Time Report"), unsafe_allow_html=True)
+            # Daily Time Log
+            elif report_type == "Daily Time Log":
+                st.subheader("Daily Time Log Report")
+                st.write(f"Period: **{start_date.strftime('%Y-%m-%d')}** to **{end_date.strftime('%Y-%m-%d')}**")
+                
+                df = st.session_state.timesheets_df
+                
+                # Group data by date
+                df['date_only'] = df['start'].dt.date
+                dates = sorted(df['date_only'].unique())
+                
+                # Date selector
+                selected_date = st.selectbox("Select Date", options=dates, index=len(dates)-1 if dates else 0)
+                
+                if selected_date:
+                    # Filter data for selected date
+                    day_entries = df[df['date_only'] == selected_date]
+                    
+                    # Summary for the day
+                    total_day_hours = day_entries['duration_hours'].sum()
+                    
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        st.metric("Total Entries", len(day_entries))
+                    
+                    with col2:
+                        st.metric("Total Hours", f"{total_day_hours:.2f}")
+                    
+                    with col3:
+                        unique_projects = day_entries['job'].nunique()
+                        st.metric("Projects", unique_projects)
+                    
+                    # Detailed entries for the day
+                    st.subheader(f"Entries for {selected_date.strftime('%A, %B %d, %Y')}")
+                    
+                    # Sort by start time
+                    day_entries = day_entries.sort_values('start')
+                    
+                    # Display entries in timeline
+                    for _, entry in day_entries.iterrows():
+                        st.markdown(f"""
+                        <div class="timesheet-entry">
+                            <div class="timesheet-date">{entry['start'].strftime('%H:%M')} - {entry['end'].strftime('%H:%M') if entry['end'] else 'Ongoing'}</div>
+                            <div class="timesheet-client">{entry['job']}</div>
+                            <div class="timesheet-description">{entry['notes']}</div>
+                            <div class="timesheet-duration">{format_duration_hours(entry['duration'])} hours</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    # Download day report
+                    st.markdown(get_excel_download_link(day_entries, f"daily_log_{selected_date.strftime('%Y-%m-%d')}.xlsx", "Download Day Report"), unsafe_allow_html=True)
+                else:
+                    st.info("No timesheet entries available for the selected date range.")
     
     # Settings View
     elif st.session_state.current_view == "Settings":
         st.title("Settings")
         
         # Settings tabs
-        tab1, tab2, tab3 = st.tabs(["General", "Appearance", "Data"])
+        tab1, tab2 = st.tabs(["Account", "App Preferences"])
         
         with tab1:
-            st.subheader("General Settings")
+            st.subheader("Account Information")
             
-            # Time tracking settings
-            st.write("**Time Tracking**")
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.checkbox("Round time entries to nearest", value=True)
-                st.selectbox("Round to", options=["5 minutes", "10 minutes", "15 minutes", "30 minutes", "1 hour"], index=2)
-            
-            with col2:
-                st.checkbox("Allow overlapping time entries", value=False)
-                st.checkbox("Auto-fill previous activity description", value=True)
-            
-            # Notification settings
-            st.write("**Notifications**")
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.checkbox("Email notifications", value=True)
-                st.checkbox("Daily summary", value=False)
-            
-            with col2:
-                st.checkbox("Weekly summary", value=True)
-                st.checkbox("Reminder for unbilled time", value=True)
-            
-            # Save settings
-            if st.button("Save General Settings"):
-                st.success("Settings saved successfully!")
+            if st.session_state.current_user:
+                user = st.session_state.current_user
+                st.write(f"**Name:** {user['first_name']} {user['last_name']}")
+                st.write(f"**Email:** {user['email']}")
+                if user.get('company_name'):
+                    st.write(f"**Company:** {user['company_name']}")
+                
+                if st.button("Refresh Account Info"):
+                    try:
+                        # Get current user data
+                        current_user_data = st.session_state.api.get_current_user()
+                        
+                        if 'results' in current_user_data and 'user' in current_user_data['results']:
+                            user = current_user_data['results']['user']
+                            st.session_state.current_user = {
+                                'id': user['id'],
+                                'first_name': user['first_name'],
+                                'last_name': user['last_name'],
+                                'email': user.get('email', ''),
+                                'company_name': user.get('company_name', '')
+                            }
+                            st.success("Account information refreshed!")
+                            st.experimental_rerun()
+                    except TsheetsApiException as e:
+                        st.error(f"API Error: {str(e)}")
+                    except Exception as e:
+                        st.error(f"Unexpected error: {str(e)}")
+            else:
+                st.warning("User information not available.")
         
         with tab2:
-            st.subheader("Appearance Settings")
+            st.subheader("Application Preferences")
             
-            # Theme settings
-            st.write("**Theme**")
-            
-            theme = st.radio("Select Theme", options=["Light", "Dark", "System Default"], index=0)
-            accent_color = st.color_picker("Accent Color", "#4e89ae")
-            
-            # Display settings
+            # App settings
             st.write("**Display**")
             
             col1, col2 = st.columns(2)
             
             with col1:
-                st.selectbox("Default View", options=["Dashboard", "Timesheets", "Clients", "Calendar", "Reports"], index=0)
-                st.checkbox("Show recent activity on dashboard", value=True)
+                default_view = st.selectbox("Default View", options=["Dashboard", "Timesheets", "Projects", "Calendar", "Reports"], index=0)
+                date_format = st.selectbox("Date Format", options=["MM/DD/YYYY", "DD/MM/YYYY", "YYYY-MM-DD"], index=2)
             
             with col2:
-                st.selectbox("Date Format", options=["MM/DD/YYYY", "DD/MM/YYYY", "YYYY-MM-DD"], index=2)
-                st.checkbox("Use 24-hour time format", value=True)
+                time_format = st.selectbox("Time Format", options=["12-hour (AM/PM)", "24-hour"], index=1)
+                items_per_page = st.number_input("Items Per Page", min_value=10, max_value=100, value=20, step=10)
             
             # Save settings
-            if st.button("Save Appearance Settings"):
-                st.success("Appearance settings saved successfully!")
-        
-        with tab3:
-            st.subheader("Data Settings")
-            
-            # Data import/export
-            st.write("**Data Import/Export**")
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.file_uploader("Import Data", type=["csv", "xlsx"])
-                st.selectbox("Import Type", options=["Timesheets", "Clients", "All Data"])
-            
-            with col2:
-                st.selectbox("Export Format", options=["CSV", "Excel", "JSON"])
-                if st.button("Export All Data"):
-                    st.success("Data exported successfully!")
-            
-            # Data cleanup
-            st.write("**Data Cleanup**")
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.number_input("Delete entries older than", min_value=1, max_value=120, value=24, step=1)
-                st.selectbox("Time Unit", options=["Days", "Weeks", "Months"], index=2)
-            
-            with col2:
-                st.checkbox("Archive instead of delete", value=True)
-                if st.button("Clean Up Data"):
-                    st.warning("This action cannot be undone. Are you sure?")
-                    if st.button("Yes, proceed with cleanup"):
-                        st.success("Data cleanup completed successfully!")
+            if st.button("Save Settings"):
+                st.success("Settings saved successfully!")
 
 # Run the app
 if __name__ == "__main__":
