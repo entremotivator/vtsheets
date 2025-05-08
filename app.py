@@ -401,7 +401,6 @@ success_lottie = load_lottieurl("https://assets5.lottiefiles.com/packages/lf20_t
 
 # API Integration Constants and Helper Functions
 TSHEETS_API_BASE_URL = "https://rest.tsheets.com/api/v1"
-TSHEETS_OAUTH_URL = "https://rest.tsheets.com/api/v1/grant"
 
 class TsheetsApiException(Exception):
     """Exception raised for TSheets API errors."""
