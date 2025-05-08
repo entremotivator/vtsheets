@@ -1735,8 +1735,8 @@ def display_settings_tab():
             if authenticate():
                 st.success("API Token updated and re-authenticated successfully!")
             else:
-                st.error(f"Failed to re-authenticate with new token. {st.session_state.error_message or \"Check token and connection.\"}")
-            st.experimental_rerun()
+                st.error(f"Failed to re-authenticate with new token. {st.session_state.error_message or 'Check token and connection.'}")
+
         else:
             st.warning("Please enter a new API token to update.")
 
