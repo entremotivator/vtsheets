@@ -1429,7 +1429,7 @@ def display_timesheet_calendar_tab(df_timesheets: pd.DataFrame):
                     if st.button(label=button_label, key=button_key, help=f"View entries for {current_day_date.strftime("%b %d")}", use_container_width=True):
                         st.session_state.calendar_selected_date_for_details = current_day_date
                         st.session_state.calendar_selected_day_entries = entries_this_month.get(day_num, [])
-                        st.experimental_rerun() 
+                        st.rerun() 
 
     if st.session_state.calendar_selected_day_entries is not None and st.session_state.calendar_selected_date_for_details:
         st.markdown("---_</h3_><h3 class=\'subsection-header\'>Entries for " + st.session_state.calendar_selected_date_for_details.strftime("%B %d, %Y") + "</h3>", unsafe_allow_html=True)
