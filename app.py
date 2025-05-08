@@ -1795,7 +1795,8 @@ def main():
                             st.experimental_rerun()
                         else:
                             # Error message is set in authenticate() or make_api_request()
-                            st.error(f"{st.session_state.error_message or \"Authentication failed. Check token and connection.\"}")
+                            msg = st.session_state.error_message or 'Authentication failed. Check token and connection.'
+st.error(msg)
                 else:
                     st.warning("Please enter an API token.")
         else:
