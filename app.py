@@ -1771,21 +1771,28 @@ def display_settings_tab():
 
 # --- Main Application Logic ---
 def main():
-    st.markdown("<h1 class=\'main-header\'>TSheets CRM Manager Pro ⏱️</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 class='main-header'>TSheets CRM Manager Pro ⏱️</h1>", unsafe_allow_html=True)
 
     with st.sidebar:
         # Using a publicly accessible, generic logo URL for placeholder
         try:
-            # Attempt to load a local logo if available, otherwise use URL
-            # For this example, we will stick to a URL to avoid file path issues in deployment
-            st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Google_Clock_Icon.svg/1024px-Google_Clock_Icon.svg.png", width=150, caption="App Logo")
+            st.image(
+                "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Google_Clock_Icon.svg/1024px-Google_Clock_Icon.svg.png",
+                width=150,
+                caption="App Logo"
+            )
         except Exception as e:
-            st.error(f"Logo Error: {e}") # Should not happen with URL
-            st.write("App Logo") # Fallback text
+            st.error(f"Logo Error: {e}")  # Should not happen with URL
+            st.write("App Logo")  # Fallback text
 
         st.markdown("## Authentication")
         if not st.session_state.authenticated:
-            api_token_input = st.text_input("Enter your TSheets API Token", type="password", key="api_token_input_sidebar", help="Your personal TSheets API access token.")
+            api_token_input = st.text_input(
+                "Enter your TSheets API Token",
+                type="password",
+                key="api_token_input_sidebar",
+                help="Your personal TSheets API access token."
+            )
             if st.button("Login", key="login_button_sidebar", use_container_width=True):
                 if api_token_input:
                     st.session_state.api_token = api_token_input
@@ -1796,18 +1803,21 @@ def main():
                         else:
                             # Error message is set in authenticate() or make_api_request()
                             msg = st.session_state.error_message or 'Authentication failed. Check token and connection.'
-st.error(msg)
+                            st.error(msg)
                 else:
                     st.warning("Please enter an API token.")
         else:
             if st.session_state.current_user:
-                st.markdown(f"Logged in as: **{st.session_state.current_user.get("first_name", "")} {st.session_state.current_user.get("last_name", "")}**")
-                st.caption(f"User ID: {st.session_state.current_user.get("id")}")
+                st.markdown(
+                    f"Logged in as: **{st.session_state.current_user.get('first_name', '')} "
+                    f"{st.session_state.current_user.get('last_name', '')}**"
+                )
+                st.caption(f"User ID: {st.session_state.current_user.get('id')}")
             if st.button("Logout", key="logout_button_sidebar", use_container_width=True):
                 st.session_state.authenticated = False
                 st.session_state.api_token = ""
                 st.session_state.current_user = None
-                st.session_state.timesheets = [] 
+                st.session_state.timesheets = []
                 st.session_state.users = {}
                 st.session_state.jobcodes = {}
                 st.session_state.clients = []
@@ -1819,9 +1829,10 @@ st.error(msg)
                 get_timesheets_for_month_display.clear()
                 st.success("Logged out successfully.")
                 st.experimental_rerun()
-            
-            st.markdown("---_</h3_>")
+
+            st.markdown("---")
             st.markdown("## Data Refresh")
+
             if st.button("Refresh All Data", key="refresh_data_sidebar", use_container_width=True):
                 with st.spinner("Refreshing all data..."):
                     fetch_users_data.clear() 
