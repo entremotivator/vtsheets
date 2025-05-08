@@ -134,15 +134,18 @@ if 'last_refresh' not in st.session_state:
 if 'active_tab' not in st.session_state:
     st.session_state.active_tab = "Dashboard"
 if 'date_range' not in st.session_state:
-    # Default to last 30 days
+    # Default to last 30 days from current date
+    today = datetime.now().date()
     st.session_state.date_range = (
-        (datetime.now() - timedelta(days=30)).date(),
-        datetime.now().date()
+        today - timedelta(days=30),
+        today
     )
 if 'error_message' not in st.session_state:
     st.session_state.error_message = None
 if 'success_message' not in st.session_state:
     st.session_state.success_message = None
+if 'debug_info' not in st.session_state:
+    st.session_state.debug_info = None
 
 # Helper Functions
 def make_api_request(endpoint, method="GET", params=None, data=None):
@@ -162,6 +165,14 @@ def make_api_request(endpoint, method="GET", params=None, data=None):
         elif method == "DELETE":
             response = requests.delete(endpoint, headers=headers, json=data)
         
+        # Store debug info for troubleshooting
+        if endpoint == TIMESHEETS_ENDPOINT and method == "GET":
+            st.session_state.debug_info = {
+                "endpoint": endpoint,
+                "params": params,
+                "status_code": response.status_code
+            }
+            
         if response.status_code == 200:
             return response.json()
         else:
@@ -216,12 +227,22 @@ def load_jobcodes():
 def load_timesheets():
     """Load timesheets from TSheets API"""
     # Get timesheets for the current user only
-    start_date = st.session_state.date_range[0].strftime("%Y-%m-%d")
-    end_date = st.session_state.date_range[1].strftime("%Y-%m-%d")
+    # Ensure dates are in the correct format and not in the future
+    today = datetime.now().date()
+    
+    # Make sure end date is not in the future
+    end_date = min(st.session_state.date_range[1], today)
+    
+    # Make sure start date is not after end date
+    start_date = min(st.session_state.date_range[0], end_date)
+    
+    # Format dates for API
+    start_date_str = start_date.strftime("%Y-%m-%d")
+    end_date_str = end_date.strftime("%Y-%m-%d")
     
     params = {
-        "start_date": start_date,
-        "end_date": end_date,
+        "start_date": start_date_str,
+        "end_date": end_date_str,
         "user_ids": st.session_state.current_user['id'],
         "supplemental_data": "yes"
     }
@@ -233,6 +254,9 @@ def load_timesheets():
         timesheets = list(response['results']['timesheets'].values())
         timesheets.sort(key=lambda x: x['date'], reverse=True)
         st.session_state.timesheets = timesheets
+    else:
+        # If no timesheets found or error, set to empty list
+        st.session_state.timesheets = []
 
 def format_duration(seconds):
     """Format duration in seconds to HH:MM:SS"""
@@ -317,31 +341,36 @@ def get_timesheet_dataframe(timesheets):
     
     data = []
     for ts in timesheets:
-        # Format dates and times
-        entry_date = datetime.strptime(ts['date'], "%Y-%m-%d")
-        start_time = datetime.fromisoformat(ts['start'].replace('Z', '+00:00'))
-        end_time = datetime.fromisoformat(ts['end'].replace('Z', '+00:00'))
-        
-        data.append({
-            "id": ts['id'],
-            "date": entry_date,
-            "date_str": entry_date.strftime("%b %d, %Y"),
-            "day_of_week": entry_date.strftime("%A"),
-            "week_number": entry_date.isocalendar()[1],
-            "month": entry_date.strftime("%B"),
-            "year": entry_date.year,
-            "user_id": ts['user_id'],
-            "user_name": get_user_name(ts['user_id']),
-            "jobcode_id": ts['jobcode_id'],
-            "job_name": get_jobcode_name(ts['jobcode_id']),
-            "start_time": start_time,
-            "end_time": end_time,
-            "duration_seconds": ts['duration'],
-            "duration_hours": ts['duration'] / 3600,
-            "duration_formatted": format_duration(ts['duration']),
-            "type": ts['type'].capitalize(),
-            "notes": ts.get('notes', '')
-        })
+        try:
+            # Format dates and times
+            entry_date = datetime.strptime(ts['date'], "%Y-%m-%d")
+            start_time = datetime.fromisoformat(ts['start'].replace('Z', '+00:00'))
+            end_time = datetime.fromisoformat(ts['end'].replace('Z', '+00:00'))
+            
+            data.append({
+                "id": ts['id'],
+                "date": entry_date,
+                "date_str": entry_date.strftime("%b %d, %Y"),
+                "day_of_week": entry_date.strftime("%A"),
+                "week_number": entry_date.isocalendar()[1],
+                "month": entry_date.strftime("%B"),
+                "year": entry_date.year,
+                "user_id": ts['user_id'],
+                "user_name": get_user_name(ts['user_id']),
+                "jobcode_id": ts['jobcode_id'],
+                "job_name": get_jobcode_name(ts['jobcode_id']),
+                "start_time": start_time,
+                "end_time": end_time,
+                "duration_seconds": ts['duration'],
+                "duration_hours": ts['duration'] / 3600,
+                "duration_formatted": format_duration(ts['duration']),
+                "type": ts['type'].capitalize(),
+                "notes": ts.get('notes', '')
+            })
+        except Exception as e:
+            # Skip entries with invalid data
+            st.session_state.error_message = f"Error processing timesheet entry: {str(e)}"
+            continue
     
     return pd.DataFrame(data)
 
@@ -450,6 +479,9 @@ def generate_daily_summary(df):
 
 def get_download_link(df, filename, link_text):
     """Generate a download link for a DataFrame"""
+    if df.empty:
+        return "No data to download"
+    
     csv = df.to_csv(index=False)
     b64 = base64.b64encode(csv.encode()).decode()
     href = f'<a href="data:file/csv;base64,{b64}" download="{filename}" class="download-link">{link_text}</a>'
@@ -457,6 +489,9 @@ def get_download_link(df, filename, link_text):
 
 def get_excel_download_link(df, filename, link_text):
     """Generate a download link for a DataFrame as Excel"""
+    if df.empty:
+        return "No data to download"
+    
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
         df.to_excel(writer, sheet_name='Sheet1', index=False)
@@ -465,6 +500,28 @@ def get_excel_download_link(df, filename, link_text):
     b64 = base64.b64encode(excel_data).decode()
     href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="{filename}" class="download-link">{link_text}</a>'
     return href
+
+def get_date_range_presets():
+    """Get predefined date range options"""
+    today = datetime.now().date()
+    
+    return {
+        "Today": (today, today),
+        "Yesterday": (today - timedelta(days=1), today - timedelta(days=1)),
+        "Last 7 Days": (today - timedelta(days=6), today),
+        "Last 14 Days": (today - timedelta(days=13), today),
+        "Last 30 Days": (today - timedelta(days=29), today),
+        "This Week": (today - timedelta(days=today.weekday()), today),
+        "Last Week": (
+            today - timedelta(days=today.weekday() + 7),
+            today - timedelta(days=today.weekday() + 1)
+        ),
+        "This Month": (today.replace(day=1), today),
+        "Last Month": (
+            (today.replace(day=1) - timedelta(days=1)).replace(day=1),
+            today.replace(day=1) - timedelta(days=1)
+        ),
+    }
 
 # Sidebar - Authentication
 with st.sidebar:
@@ -493,23 +550,42 @@ with st.sidebar:
         <div class="user-info">
             <p><strong>Name:</strong> {user_info['first_name']} {user_info['last_name']}</p>
             <p><strong>Email:</strong> {user_info['email'] or 'N/A'}</p>
-            <p><strong>Company:</strong> {user_info['company_name']}</p>
+            <p><strong>Company:</strong> {user_info.get('company_name', 'N/A')}</p>
         </div>
         """, unsafe_allow_html=True)
         
         # Date range selector
         st.subheader("Date Range")
-        date_range = st.date_input(
-            "Select Date Range",
-            value=st.session_state.date_range,
-            min_value=date(2000, 1, 1),
-            max_value=datetime.now().date()
-        )
         
-        if len(date_range) == 2 and date_range != st.session_state.date_range:
-            st.session_state.date_range = date_range
-            # Reload timesheets with new date range
-            load_timesheets()
+        # Preset date ranges
+        date_presets = get_date_range_presets()
+        preset_options = list(date_presets.keys())
+        preset_options.append("Custom")
+        
+        selected_preset = st.selectbox("Select Date Range", preset_options)
+        
+        if selected_preset == "Custom":
+            # Custom date range picker
+            date_range = st.date_input(
+                "Custom Date Range",
+                value=st.session_state.date_range,
+                min_value=date(2000, 1, 1),
+                max_value=datetime.now().date()
+            )
+            
+            if len(date_range) == 2 and date_range != st.session_state.date_range:
+                st.session_state.date_range = date_range
+                # Reload timesheets with new date range
+                load_timesheets()
+        else:
+            # Use preset date range
+            if date_presets[selected_preset] != st.session_state.date_range:
+                st.session_state.date_range = date_presets[selected_preset]
+                # Reload timesheets with new date range
+                load_timesheets()
+        
+        # Show current date range
+        st.caption(f"Current range: {st.session_state.date_range[0]} to {st.session_state.date_range[1]}")
         
         # Navigation
         st.subheader("Navigation")
@@ -569,8 +645,16 @@ else:
     if active_tab == "Dashboard":
         st.markdown('<h1 class="main-header">Dashboard</h1>', unsafe_allow_html=True)
         
+        # Show date range in the main content area
+        st.caption(f"Showing data for: {st.session_state.date_range[0]} to {st.session_state.date_range[1]}")
+        
         if df_timesheets.empty:
-            st.info(f"No timesheet data available for the selected date range ({st.session_state.date_range[0]} to {st.session_state.date_range[1]})")
+            st.info(f"No timesheet data available for the selected date range. Try selecting a different date range or adding new entries.")
+            
+            # Debug info for troubleshooting
+            if st.session_state.debug_info:
+                with st.expander("Debug Information"):
+                    st.json(st.session_state.debug_info)
         else:
             # Generate metrics
             metrics = generate_dashboard_metrics(df_timesheets)
@@ -696,6 +780,9 @@ else:
     elif active_tab == "View Timesheets":
         st.markdown('<h1 class="main-header">Your Timesheets</h1>', unsafe_allow_html=True)
         
+        # Show date range in the main content area
+        st.caption(f"Showing data for: {st.session_state.date_range[0]} to {st.session_state.date_range[1]}")
+        
         # Filter options
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -712,7 +799,12 @@ else:
             )
         
         if df_timesheets.empty:
-            st.info(f"No timesheet data available for the selected date range ({st.session_state.date_range[0]} to {st.session_state.date_range[1]})")
+            st.info(f"No timesheet data available for the selected date range. Try selecting a different date range or adding new entries.")
+            
+            # Debug info for troubleshooting
+            if st.session_state.debug_info:
+                with st.expander("Debug Information"):
+                    st.json(st.session_state.debug_info)
         else:
             # Apply filters
             filtered_df = df_timesheets.copy()
@@ -868,8 +960,16 @@ else:
     elif active_tab == "Edit Entry":
         st.markdown('<h1 class="main-header">Edit Timesheet Entry</h1>', unsafe_allow_html=True)
         
+        # Show date range in the main content area
+        st.caption(f"Showing data for: {st.session_state.date_range[0]} to {st.session_state.date_range[1]}")
+        
         if df_timesheets.empty:
-            st.info(f"No timesheet data available for the selected date range ({st.session_state.date_range[0]} to {st.session_state.date_range[1]})")
+            st.info(f"No timesheet data available for the selected date range. Try selecting a different date range or adding new entries.")
+            
+            # Debug info for troubleshooting
+            if st.session_state.debug_info:
+                with st.expander("Debug Information"):
+                    st.json(st.session_state.debug_info)
         else:
             # Select timesheet entry to edit
             timesheet_options = {row['id']: f"{row['date_str']} - {row['job_name']} ({row['duration_formatted']})" 
@@ -976,8 +1076,16 @@ else:
     elif active_tab == "Reports":
         st.markdown('<h1 class="main-header">Timesheet Reports</h1>', unsafe_allow_html=True)
         
+        # Show date range in the main content area
+        st.caption(f"Showing data for: {st.session_state.date_range[0]} to {st.session_state.date_range[1]}")
+        
         if df_timesheets.empty:
-            st.info(f"No timesheet data available for the selected date range ({st.session_state.date_range[0]} to {st.session_state.date_range[1]})")
+            st.info(f"No timesheet data available for the selected date range. Try selecting a different date range or adding new entries.")
+            
+            # Debug info for troubleshooting
+            if st.session_state.debug_info:
+                with st.expander("Debug Information"):
+                    st.json(st.session_state.debug_info)
         else:
             # Create tabs for different reports
             report_tabs = st.tabs(["Weekly Summary", "Job Summary", "Daily Summary"])
