@@ -1,4 +1,12 @@
 import streamlit as st
+
+# Set page configuration - MUST be the first Streamlit command
+st.set_page_config(
+    page_title="TSheets CRM Manager Pro",
+    page_icon="⏱️",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -31,13 +39,7 @@ from streamlit_extras.switch_page_button import switch_page
 from streamlit_extras.add_vertical_space import add_vertical_space
 from streamlit_extras.customize_running import center_running
 
-# Set page configuration
-st.set_page_config(
-    page_title="TSheets CRM Manager Pro",
-    page_icon="⏱️",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+
 
 # Custom CSS for better styling
 st.markdown("""
