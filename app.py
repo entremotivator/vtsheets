@@ -755,7 +755,6 @@ def authenticate():
         load_users()
         load_jobcodes()
         load_timesheets()
-        load_clients()
         st.session_state.last_refresh = datetime.now()
         return True
     else:
