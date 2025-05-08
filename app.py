@@ -2962,3 +2962,5 @@ def get_client_timesheets(client_id: int) -> List[Dict]:
     client_index = client_id % 7  # Use modulo to distribute timesheets
     return [ts for i, ts in enumerate(st.session_state.timesheets) if i % 7 == client_index]
 
+}
+
