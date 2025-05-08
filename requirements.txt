@@ -1,27 +1,41 @@
-streamlit>=1.22.0
+# Core dependencies
+streamlit==1.45.0
 pandas>=1.5.3
 numpy>=1.24.3
 matplotlib>=3.7.1
-seaborn>=0.12.2
+seaborn==0.13.2
 plotly>=5.14.1
-requests>=2.29.0
+requests==2.32.3
 Pillow>=9.5.0
 altair>=5.0.1
 
 # Streamlit extensions
 streamlit-calendar>=0.3.0
-streamlit-option-menu>=0.3.2
-streamlit-lottie>=0.0.5
-streamlit-extras>=0.2.7
+streamlit-option-menu==0.4.0
+streamlit-lottie==0.0.5
+streamlit-extras==0.7.1
 
 # Data processing
-xlsxwriter>=3.1.0
+xlsxwriter==3.2.3
 openpyxl>=3.1.2
 
 # Date and time handling
-python-dateutil>=2.8.2
+python-dateutil==2.9.0.post0
 pytz>=2023.3
 
 # Optional: for development
+pytest==8.3.5
 black>=23.3.0
-pytest>=7.3.1
+
+# Additional extensions found in your environment
+st-annotated-text==4.0.2
+st-theme==1.2.3
+streamlit-avatar==0.1.3
+streamlit-camera-input-live==0.2.0
+streamlit-card==1.0.2
+streamlit-embedcode==0.1.2
+streamlit-faker==0.0.3
+streamlit-image-coordinates==0.2.1
+streamlit-keyup==0.3.0
+streamlit-toggle-switch==1.0.2
+streamlit-vertical-slider==2.5.5
