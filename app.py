@@ -1695,7 +1695,7 @@ def display_reports_tab():
         st.download_button(
             label=f"Download {report_type} Summary as CSV",
             data=csv,
-            file_name=f"timesheet_summary_by_{report_type.lower().replace(\" \", \"_\")}.csv",
+            file_name = f"timesheet_summary_by_{report_type.lower().replace(' ', '_')}.csv",
             mime="text/csv",
             key=f"download_{report_type}_csv"
         )
