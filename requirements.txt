@@ -14,6 +14,17 @@ streamlit-calendar>=0.3.0
 streamlit-option-menu==0.4.0
 streamlit-lottie==0.0.5
 streamlit-extras==0.7.1
+st-annotated-text==4.0.2
+st-theme==1.2.3
+streamlit-avatar==0.1.3
+streamlit-camera-input-live==0.2.0
+streamlit-card==1.0.2
+streamlit-embedcode==0.1.2
+streamlit-faker==0.0.3
+streamlit-image-coordinates==0.2.1
+streamlit-keyup==0.3.0
+streamlit-toggle-switch==1.0.2
+streamlit-vertical-slider==2.5.5
 
 # Data processing
 xlsxwriter==3.2.3
@@ -26,16 +37,3 @@ pytz>=2023.3
 # Optional: for development
 pytest==8.3.5
 black>=23.3.0
-
-# Additional extensions found in your environment
-st-annotated-text==4.0.2
-st-theme==1.2.3
-streamlit-avatar==0.1.3
-streamlit-camera-input-live==0.2.0
-streamlit-card==1.0.2
-streamlit-embedcode==0.1.2
-streamlit-faker==0.0.3
-streamlit-image-coordinates==0.2.1
-streamlit-keyup==0.3.0
-streamlit-toggle-switch==1.0.2
-streamlit-vertical-slider==2.5.5
