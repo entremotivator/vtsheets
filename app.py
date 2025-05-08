@@ -865,7 +865,7 @@ def load_clients():
             "contact": "Michael Bolton",
             "email": "michael.bolton@initech.com",
             "phone": "555-555-5555",
-            "address": "789 Pine  "michael.bolton@initech.com",
+            "address": "789 Pine  "michael.@initech.com",
             "phone": "555-555-5555",
             "address": "789 Pine St, Elsewhere, USA",
             "status": "inactive",
