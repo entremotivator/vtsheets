@@ -1,20 +1,3 @@
-"""
-This file contains the new Python functions and integration
-instructions for enhancing the TSheets CRM Manager Pro Streamlit application.
-
-Due to limitations in reading the entirety of your original large code file,
-I cannot provide a single, fully merged file. You will need to integrate
-these components into your existing script (`pasted_content.txt`).
-
-Instructions:
-1.  Copy the new functions provided below into your main Python script.
-    A logical place would be alongside other data processing or display functions.
-2.  Modify the main application layout section (where tabs are defined and handled)
-    as shown in the 'TAB INTEGRATION EXAMPLE' section.
-3.  Ensure all necessary libraries are imported (Plotly, pandas, datetime, calendar
-    are likely already in your script).
-"""
-
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta, date
@@ -357,50 +340,3 @@ def display_timesheet_calendar_tab(df_timesheets: pd.DataFrame):
     else:
         st.info("Click on a day in the calendar to view its timesheet entries.")
 
-
-# --- TAB INTEGRATION EXAMPLE --- 
-"""
-Locate the section in your main script where Streamlit tabs or navigation is handled.
-It might look something like this (this is an illustrative example):
-
-# if st.session_state.authenticated:
-#   # --- MODIFICATION START ---
-#   # Original tabs:
-#   # main_tabs = ["Dashboard", "Timesheets", "Analytics", "Clients", "Reports", "Settings"]
-#   # New tabs:
-#   main_tabs = ["Dashboard", "Timesheets", "Timesheet Calendar", 
-#                "Analytics", "Performance Analytics", "Clients", "Reports", "Settings"]
-#   
-#   if 'active_tab' not in st.session_state or st.session_state.active_tab not in main_tabs:
-#       st.session_state.active_tab = "Dashboard"
-# 
-#   st.session_state.active_tab = st.sidebar.radio(
-#       "Navigation", 
-#       main_tabs, 
-#       index=main_tabs.index(st.session_state.active_tab),
-#       key="navigation_radio"
-#   )
-#   # --- MODIFICATION END ---
-# 
-#   # Ensure timesheet_df is available. It's usually generated after loading timesheets.
-#   # timesheet_df = get_timesheet_dataframe(st.session_state.timesheets) 
-# 
-#   if st.session_state.active_tab == "Dashboard":
-#       display_dashboard(timesheet_df) # Assuming this function exists
-#   elif st.session_state.active_tab == "Timesheets":
-#       display_timesheets_manager(timesheet_df) # Assuming this function exists
-#   # --- NEW TAB HANDLING START ---
-#   elif st.session_state.active_tab == "Timesheet Calendar":
-#       display_timesheet_calendar_tab(timesheet_df) # Pass the timesheet_df
-#   # --- NEW TAB HANDLING END ---
-#   elif st.session_state.active_tab == "Analytics":
-#       display_timesheet_analytics(timesheet_df) # Assuming this function exists (original analytics)
-#   # --- NEW TAB HANDLING START ---
-#   elif st.session_state.active_tab == "Performance Analytics":
-#       display_performance_analytics_tab(timesheet_df) # Pass the timesheet_df
-#   # --- NEW TAB HANDLING END ---
-#   elif st.session_state.active_tab == "Clients":
-#       display_clients_tab() # Assuming this function exists
-#   # ... and so on for other existing tabs
-
-"""
