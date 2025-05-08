@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import pandas as pd
+import numpy as np
 import json
 from datetime import datetime, timedelta, date
 import time
@@ -10,6 +11,13 @@ import io
 import base64
 import calendar
 import re
+import altair as alt
+from PIL import Image
+from io import BytesIO
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+from matplotlib.colors import LinearSegmentedColormap
+import seaborn as sns
 
 # Set page configuration
 st.set_page_config(
@@ -22,16 +30,19 @@ st.set_page_config(
 # Custom CSS for better styling
 st.markdown("""
 <style>
+    /* General Styles */
     .main-header {
         font-size: 2.5rem;
         font-weight: bold;
         margin-bottom: 1rem;
+        color: #2C3E50;
     }
     .section-header {
         font-size: 1.8rem;
         font-weight: bold;
         margin-top: 1rem;
         margin-bottom: 0.5rem;
+        color: #34495E;
     }
     .info-text {
         font-size: 1rem;
@@ -40,38 +51,74 @@ st.markdown("""
     .success-message {
         background-color: #d4edda;
         color: #155724;
-        padding: 10px;
+        padding: 15px;
         border-radius: 5px;
-        margin-bottom: 10px;
+        margin-bottom: 15px;
+        border-left: 5px solid #155724;
     }
     .error-message {
         background-color: #f8d7da;
         color: #721c24;
-        padding: 10px;
-        border-radius: 5px;
-        margin-bottom: 10px;
-    }
-    .stButton button {
-        width: 100%;
-    }
-    .user-info {
-        background-color: #e9ecef;
         padding: 15px;
         border-radius: 5px;
         margin-bottom: 15px;
+        border-left: 5px solid #721c24;
     }
+    .warning-message {
+        background-color: #fff3cd;
+        color: #856404;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 15px;
+        border-left: 5px solid #856404;
+    }
+    .info-message {
+        background-color: #d1ecf1;
+        color: #0c5460;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 15px;
+        border-left: 5px solid #0c5460;
+    }
+    
+    /* Button Styles */
+    .stButton button {
+        width: 100%;
+        border-radius: 5px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    .stButton button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* User Info */
+    .user-info {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        border-left: 5px solid #4CAF50;
+    }
+    
+    /* Client Card */
     .client-card {
         background-color: white;
-        border-radius: 5px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        padding: 20px;
-        margin-bottom: 20px;
-        transition: transform 0.3s ease;
+        border-radius: 10px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        padding: 25px;
+        margin-bottom: 25px;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        border-top: 5px solid #4CAF50;
     }
     .client-card:hover {
         transform: translateY(-5px);
-        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
     }
+    
+    /* Tabs */
     .stTabs [data-baseweb="tab-list"] {
         gap: 24px;
     }
@@ -79,105 +126,139 @@ st.markdown("""
         height: 50px;
         white-space: pre-wrap;
         background-color: #f8f9fa;
-        border-radius: 4px 4px 0px 0px;
+        border-radius: 8px 8px 0px 0px;
         gap: 1px;
-        padding-top: 10px;
-        padding-bottom: 10px;
+        padding: 10px 20px;
+        font-weight: 500;
     }
     .stTabs [aria-selected="true"] {
         background-color: #e9ecef;
-        border-bottom: 2px solid #4CAF50;
+        border-bottom: 3px solid #4CAF50;
     }
+    
+    /* Metric Cards */
     .metric-card {
         background-color: white;
-        border-radius: 5px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        padding: 25px;
         text-align: center;
         height: 100%;
+        transition: transform 0.3s ease;
+        border-top: 4px solid #4CAF50;
+    }
+    .metric-card:hover {
+        transform: translateY(-5px);
     }
     .metric-value {
-        font-size: 2rem;
+        font-size: 2.2rem;
         font-weight: bold;
         color: #4CAF50;
+        margin-bottom: 10px;
     }
     .metric-label {
-        font-size: 1rem;
+        font-size: 1.1rem;
         color: #555;
+        font-weight: 500;
     }
+    
+    /* Download Links */
     .download-link {
         text-decoration: none;
         color: white;
         background-color: #4CAF50;
-        padding: 10px 15px;
+        padding: 12px 20px;
         border-radius: 5px;
         text-align: center;
         display: inline-block;
-        margin-top: 10px;
+        margin-top: 15px;
+        font-weight: 500;
+        transition: background-color 0.3s ease, transform 0.3s ease;
     }
     .download-link:hover {
         background-color: #45a049;
+        transform: translateY(-2px);
     }
+    
+    /* Sidebar */
     .sidebar .sidebar-content {
         background-color: #f8f9fa;
     }
+    
+    /* Client Profile */
     .client-profile {
         background-color: white;
-        border-radius: 5px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        padding: 20px;
-        margin-bottom: 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        padding: 25px;
+        margin-bottom: 25px;
     }
     .client-profile h3 {
         color: #2C3E50;
         border-bottom: 1px solid #eee;
-        padding-bottom: 10px;
-        margin-bottom: 15px;
+        padding-bottom: 15px;
+        margin-bottom: 20px;
     }
     .client-profile-section {
-        margin-bottom: 15px;
+        margin-bottom: 20px;
     }
     .client-profile-section h4 {
         color: #34495E;
-        margin-bottom: 10px;
+        margin-bottom: 15px;
+        font-weight: 600;
     }
     .client-contact {
         display: flex;
         align-items: center;
-        margin-bottom: 10px;
+        margin-bottom: 15px;
     }
     .client-contact-icon {
-        margin-right: 10px;
+        margin-right: 15px;
         color: #3498DB;
     }
+    
+    /* Timesheet Detail */
     .timesheet-detail {
         background-color: #f8f9fa;
-        border-left: 3px solid #4CAF50;
-        padding: 15px;
-        margin-bottom: 15px;
-        border-radius: 0 5px 5px 0;
+        border-left: 4px solid #4CAF50;
+        padding: 20px;
+        margin-bottom: 20px;
+        border-radius: 0 10px 10px 0;
+        transition: transform 0.3s ease;
+    }
+    .timesheet-detail:hover {
+        transform: translateX(5px);
     }
     .timesheet-date {
         font-weight: bold;
         color: #2C3E50;
+        font-size: 1.1rem;
+        margin-bottom: 5px;
     }
     .timesheet-duration {
         font-weight: bold;
         color: #4CAF50;
+        margin: 5px 0;
     }
     .timesheet-job {
         color: #3498DB;
+        font-weight: 500;
+        margin: 5px 0;
     }
     .timesheet-notes {
         font-style: italic;
         color: #7F8C8D;
-        margin-top: 5px;
+        margin-top: 10px;
+        padding-top: 5px;
+        border-top: 1px dashed #ddd;
     }
+    
+    /* Status Badges */
     .status-badge {
         display: inline-block;
-        padding: 3px 10px;
-        border-radius: 12px;
-        font-size: 0.8rem;
+        padding: 5px 12px;
+        border-radius: 15px;
+        font-size: 0.85rem;
         font-weight: bold;
     }
     .status-active {
@@ -192,38 +273,51 @@ st.markdown("""
         background-color: #fff3cd;
         color: #856404;
     }
+    
+    /* Avatar */
     .avatar {
-        width: 100px;
-        height: 100px;
+        width: 120px;
+        height: 120px;
         border-radius: 50%;
         object-fit: cover;
-        margin-bottom: 15px;
+        margin-bottom: 20px;
+        border: 4px solid #4CAF50;
     }
+    
+    /* Client Stats */
     .client-stats {
         display: flex;
         justify-content: space-between;
-        margin-bottom: 15px;
+        margin-bottom: 20px;
     }
     .client-stat {
         text-align: center;
         flex: 1;
-        padding: 10px;
+        padding: 15px;
         background-color: #f8f9fa;
-        border-radius: 5px;
-        margin: 0 5px;
+        border-radius: 10px;
+        margin: 0 8px;
+        transition: transform 0.3s ease;
+    }
+    .client-stat:hover {
+        transform: translateY(-5px);
     }
     .client-stat-value {
-        font-size: 1.5rem;
+        font-size: 1.8rem;
         font-weight: bold;
         color: #4CAF50;
     }
     .client-stat-label {
-        font-size: 0.8rem;
+        font-size: 0.9rem;
         color: #555;
+        margin-top: 5px;
     }
+    
+    /* Activity Timeline */
     .activity-timeline {
         position: relative;
-        margin-left: 20px;
+        margin-left: 30px;
+        padding-left: 20px;
     }
     .activity-timeline:before {
         content: '';
@@ -237,27 +331,318 @@ st.markdown("""
     .activity-item {
         position: relative;
         padding-left: 30px;
-        margin-bottom: 20px;
+        margin-bottom: 25px;
     }
     .activity-item:before {
         content: '';
         position: absolute;
-        left: -5px;
+        left: -10px;
         top: 0;
-        width: 12px;
-        height: 12px;
+        width: 16px;
+        height: 16px;
         border-radius: 50%;
         background-color: #4CAF50;
+        border: 3px solid #fff;
+        box-shadow: 0 0 0 1px #4CAF50;
     }
     .activity-date {
-        font-size: 0.8rem;
+        font-size: 0.85rem;
         color: #7F8C8D;
+        margin-bottom: 5px;
     }
     .activity-content {
         background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        margin-top: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    }
+    
+    /* Calendar Styles */
+    .calendar-container {
+        background-color: white;
+        border-radius: 10px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    .calendar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+    .calendar-title {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #2C3E50;
+    }
+    .calendar-nav {
+        display: flex;
+        gap: 10px;
+    }
+    .calendar-nav button {
+        background-color: #f8f9fa;
+        border: none;
+        border-radius: 5px;
+        padding: 5px 10px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+    .calendar-nav button:hover {
+        background-color: #e9ecef;
+    }
+    .calendar-weekdays {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 5px;
+        margin-bottom: 10px;
+    }
+    .calendar-weekday {
+        text-align: center;
+        font-weight: bold;
+        padding: 10px;
+        background-color: #f8f9fa;
+        border-radius: 5px;
+    }
+    .calendar-days {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 5px;
+    }
+    .calendar-day {
+        text-align: center;
         padding: 10px;
         border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s ease, transform 0.3s ease;
+    }
+    .calendar-day:hover {
+        background-color: #e9ecef;
+        transform: scale(1.05);
+    }
+    .calendar-day.today {
+        background-color: #d4edda;
+        color: #155724;
+        font-weight: bold;
+    }
+    .calendar-day.has-entries {
+        background-color: #d1ecf1;
+        color: #0c5460;
+    }
+    .calendar-day.selected {
+        background-color: #4CAF50;
+        color: white;
+        font-weight: bold;
+    }
+    .calendar-day.other-month {
+        color: #aaa;
+        background-color: #f8f9fa;
+    }
+    
+    /* Day View */
+    .day-view {
+        background-color: white;
+        border-radius: 10px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        padding: 20px;
+        margin-top: 20px;
+    }
+    .day-view-header {
+        font-size: 1.3rem;
+        font-weight: bold;
+        color: #2C3E50;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #eee;
+    }
+    .day-view-entry {
+        background-color: #f8f9fa;
+        border-left: 4px solid #4CAF50;
+        padding: 15px;
+        margin-bottom: 15px;
+        border-radius: 0 5px 5px 0;
+    }
+    .day-view-time {
+        font-weight: bold;
+        color: #2C3E50;
+    }
+    .day-view-job {
+        color: #3498DB;
+        font-weight: 500;
+        margin: 5px 0;
+    }
+    .day-view-duration {
+        font-weight: bold;
+        color: #4CAF50;
+    }
+    .day-view-notes {
+        font-style: italic;
+        color: #7F8C8D;
         margin-top: 5px;
+    }
+    
+    /* Heat Map Calendar */
+    .heatmap-container {
+        background-color: white;
+        border-radius: 10px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    .heatmap-legend {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-top: 10px;
+    }
+    .legend-item {
+        display: flex;
+        align-items: center;
+        margin: 0 10px;
+    }
+    .legend-color {
+        width: 20px;
+        height: 20px;
+        margin-right: 5px;
+        border-radius: 3px;
+    }
+    .legend-label {
+        font-size: 0.9rem;
+        color: #555;
+    }
+    
+    /* Analytics Dashboard */
+    .analytics-card {
+        background-color: white;
+        border-radius: 10px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        padding: 20px;
+        margin-bottom: 20px;
+        height: 100%;
+    }
+    .analytics-header {
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: #2C3E50;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #eee;
+    }
+    
+    /* Productivity Score */
+    .productivity-score {
+        text-align: center;
+        padding: 20px;
+    }
+    .score-value {
+        font-size: 3rem;
+        font-weight: bold;
+        color: #4CAF50;
+    }
+    .score-label {
+        font-size: 1.2rem;
+        color: #555;
+        margin-top: 10px;
+    }
+    
+    /* Progress Bar */
+    .progress-container {
+        margin: 15px 0;
+    }
+    .progress-label {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 5px;
+    }
+    .progress-bar {
+        height: 10px;
+        background-color: #f8f9fa;
+        border-radius: 5px;
+        overflow: hidden;
+    }
+    .progress-fill {
+        height: 100%;
+        background-color: #4CAF50;
+        border-radius: 5px;
+    }
+    
+    /* Notification Badge */
+    .notification-badge {
+        display: inline-block;
+        background-color: #dc3545;
+        color: white;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        text-align: center;
+        line-height: 20px;
+        font-size: 0.8rem;
+        margin-left: 5px;
+    }
+    
+    /* Search Bar */
+    .search-container {
+        position: relative;
+        margin-bottom: 20px;
+    }
+    .search-icon {
+        position: absolute;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #aaa;
+    }
+    .search-input {
+        width: 100%;
+        padding: 10px 10px 10px 35px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        font-size: 1rem;
+    }
+    .search-input:focus {
+        border-color: #4CAF50;
+        outline: none;
+    }
+    
+    /* Footer */
+    .footer {
+        text-align: center;
+        padding: 20px;
+        color: #666;
+        border-top: 1px solid #eee;
+        margin-top: 40px;
+    }
+    .footer-logo {
+        max-width: 100px;
+        margin-bottom: 10px;
+    }
+    .footer-links {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        margin: 10px 0;
+    }
+    .footer-link {
+        color: #4CAF50;
+        text-decoration: none;
+    }
+    .footer-link:hover {
+        text-decoration: underline;
+    }
+    
+    /* Responsive Adjustments */
+    @media (max-width: 768px) {
+        .client-stats {
+            flex-direction: column;
+        }
+        .client-stat {
+            margin: 5px 0;
+        }
+        .calendar-weekday, .calendar-day {
+            padding: 5px;
+            font-size: 0.9rem;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -308,6 +693,18 @@ if 'selected_client' not in st.session_state:
     st.session_state.selected_client = None
 if 'client_search' not in st.session_state:
     st.session_state.client_search = ""
+if 'calendar_date' not in st.session_state:
+    st.session_state.calendar_date = datetime.now().date()
+if 'calendar_view' not in st.session_state:
+    st.session_state.calendar_view = "month"  # "month", "week", or "day"
+if 'selected_date' not in st.session_state:
+    st.session_state.selected_date = datetime.now().date()
+if 'notifications' not in st.session_state:
+    st.session_state.notifications = [
+        {"id": 1, "message": "New client added: Acme Corporation", "date": "2023-05-08", "read": False},
+        {"id": 2, "message": "Timesheet approval pending", "date": "2023-05-07", "read": False},
+        {"id": 3, "message": "Weekly report generated", "date": "2023-05-06", "read": True}
+    ]
 
 # Helper Functions
 def make_api_request(endpoint, method="GET", params=None, data=None):
@@ -468,6 +865,8 @@ def load_clients():
             "contact": "Michael Bolton",
             "email": "michael.bolton@initech.com",
             "phone": "555-555-5555",
+            "address": "789 Pine  "michael.bolton@initech.com",
+            "phone": "555-555-5555",
             "address": "789 Pine St, Elsewhere, USA",
             "status": "inactive",
             "industry": "Finance",
@@ -512,6 +911,40 @@ def load_clients():
             "total_hours": 287.75,
             "billing_rate": 200,
             "avatar": "https://www.gravatar.com/avatar/44444444444444444444444444444444?d=mp&f=y"
+        },
+        {
+            "id": 1006,
+            "name": "Umbrella Corporation",
+            "contact": "Albert Wesker",
+            "email": "wesker@umbrella.com",
+            "phone": "555-VIRUS",
+            "address": "123 Raccoon St, Raccoon City, USA",
+            "status": "active",
+            "industry": "Pharmaceuticals",
+            "notes": "Biotech research projects",
+            "created_date": "2022-09-15",
+            "last_contact": "2023-05-01",
+            "projects": ["Vaccine Development", "Genetic Research"],
+            "total_hours": 325.5,
+            "billing_rate": 275,
+            "avatar": "https://www.gravatar.com/avatar/55555555555555555555555555555555?d=mp&f=y"
+        },
+        {
+            "id": 1007,
+            "name": "Oscorp Industries",
+            "contact": "Norman Osborn",
+            "email": "norman@oscorp.com",
+            "phone": "555-GOBLIN",
+            "address": "Oscorp Tower, New York, USA",
+            "status": "active",
+            "industry": "Research",
+            "notes": "Military and scientific research",
+            "created_date": "2022-10-20",
+            "last_contact": "2023-04-15",
+            "projects": ["Advanced Materials", "Bioengineering"],
+            "total_hours": 198.25,
+            "billing_rate": 225,
+            "avatar": "https://www.gravatar.com/avatar/66666666666666666666666666666666?d=mp&f=y"
         }
     ]
     
@@ -644,7 +1077,9 @@ def generate_dashboard_metrics(df):
             "days_worked": 0,
             "most_common_job": "N/A",
             "billable_hours": "0.00",
-            "non_billable_hours": "0.00"
+            "non_billable_hours": "0.00",
+            "productivity_score": 0,
+            "utilization_rate": 0
         }
     
     total_seconds = df['duration_seconds'].sum()
@@ -664,6 +1099,12 @@ def generate_dashboard_metrics(df):
     billable_seconds = total_seconds * 0.75  # Assuming 75% billable for this example
     non_billable_seconds = total_seconds * 0.25
     
+    # Calculate productivity score (mock data for this example)
+    productivity_score = min(100, int((total_seconds / (8 * 3600 * days_worked)) * 100)) if days_worked > 0 else 0
+    
+    # Calculate utilization rate (mock data for this example)
+    utilization_rate = min(100, int((billable_seconds / total_seconds) * 100)) if total_seconds > 0 else 0
+    
     return {
         "total_hours": format_duration(total_seconds),
         "total_hours_decimal": format_duration_hours(total_seconds),
@@ -671,7 +1112,9 @@ def generate_dashboard_metrics(df):
         "days_worked": days_worked,
         "most_common_job": most_common_job,
         "billable_hours": format_duration_hours(billable_seconds),
-        "non_billable_hours": format_duration_hours(non_billable_seconds)
+        "non_billable_hours": format_duration_hours(non_billable_seconds),
+        "productivity_score": productivity_score,
+        "utilization_rate": utilization_rate
     }
 
 def generate_weekly_report(df):
@@ -779,10 +1222,6 @@ def get_excel_download_link(df, filename, link_text):
     return href
 
 def get_date_range_presets():
-      class="download-link">{link_text}</a>'
-    return href
-
-def get_date_range_presets():
     """Get predefined date range options"""
     today = datetime.now().date()
     
@@ -806,6 +1245,19 @@ def get_date_range_presets():
             datetime(today.year, ((today.month-1)//3)*3+1, 1).date(),
             today
         ),
+        "Last Quarter": (
+            datetime(today.year if today.month > 3 else today.year - 1, 
+                   ((today.month-1-3)//3)*3+1 if today.month > 3 else 10, 1).date(),
+            datetime(today.year, ((today.month-1)//3)*3+1, 1).date() - timedelta(days=1)
+        ),
+        "This Year": (
+            datetime(today.year, 1, 1).date(),
+            today
+        ),
+        "Last Year": (
+            datetime(today.year - 1, 1, 1).date(),
+            datetime(today.year, 1, 1).date() - timedelta(days=1)
+        )
     }
 
 def search_clients(query, clients):
@@ -840,8 +1292,235 @@ def get_client_timesheets(client_id):
     
     # Mock implementation - return a subset of timesheets based on client ID
     # In a real app, you would filter by a client_id field in the timesheet
-    client_index = client_id % 5  # Use modulo to distribute timesheets
-    return [ts for i, ts in enumerate(st.session_state.timesheets) if i % 5 == client_index]
+    client_index = client_id % 7  # Use modulo to distribute timesheets
+    return [ts for i, ts in enumerate(st.session_state.timesheets) if i % 7 == client_index]
+
+def get_month_calendar_data(year, month, df_timesheets):
+    """Generate calendar data for a specific month"""
+    # Get the first day of the month
+    first_day = date(year, month, 1)
+    
+    # Get the number of days in the month
+    _, num_days = calendar.monthrange(year, month)
+    
+    # Get the day of the week for the first day (0 = Monday, 6 = Sunday)
+    first_weekday = first_day.weekday()
+    
+    # Adjust for Sunday as the first day of the week
+    first_weekday = (first_weekday + 1) % 7
+    
+    # Create a list of dates for the calendar
+    calendar_dates = []
+    
+    # Add days from the previous month
+    if first_weekday > 0:
+        prev_month = first_day - timedelta(days=1)
+        prev_month_year, prev_month_num = prev_month.year, prev_month.month
+        _, prev_month_days = calendar.monthrange(prev_month_year, prev_month_num)
+        
+        for i in range(first_weekday):
+            day = prev_month_days - first_weekday + i + 1
+            calendar_dates.append({
+                'date': date(prev_month_year, prev_month_num, day),
+                'day': day,
+                'current_month': False,
+                'has_entries': False,
+                'hours': 0
+            })
+    
+    # Add days from the current month
+    for day in range(1, num_days + 1):
+        current_date = date(year, month, day)
+        
+        # Check if there are timesheet entries for this date
+        has_entries = False
+        hours = 0
+        
+        if not df_timesheets.empty:
+            day_entries = df_timesheets[df_timesheets['date'].dt.date == current_date]
+            has_entries = not day_entries.empty
+            hours = day_entries['duration_hours'].sum() if has_entries else 0
+        
+        calendar_dates.append({
+            'date': current_date,
+            'day': day,
+            'current_month': True,
+            'has_entries': has_entries,
+            'hours': hours
+        })
+    
+    # Add days from the next month to complete the grid (6 rows x 7 columns = 42 cells)
+    remaining_days = 42 - len(calendar_dates)
+    if remaining_days > 0:
+        next_month = date(year, month, num_days) + timedelta(days=1)
+        next_month_year, next_month_num = next_month.year, next_month.month
+        
+        for day in range(1, remaining_days + 1):
+            calendar_dates.append({
+                'date': date(next_month_year, next_month_num, day),
+                'day': day,
+                'current_month': False,
+                'has_entries': False,
+                'hours': 0
+            })
+    
+    return calendar_dates
+
+def get_week_calendar_data(date_obj, df_timesheets):
+    """Generate calendar data for a specific week"""
+    # Get the first day of the week (Sunday)
+    start_of_week = date_obj - timedelta(days=date_obj.weekday() + 1)
+    if start_of_week.weekday() == 6:  # If it's already Sunday
+        start_of_week = date_obj
+    
+    # Create a list of dates for the week
+    calendar_dates = []
+    
+    for i in range(7):
+        current_date = start_of_week + timedelta(days=i)
+        
+        # Check if there are timesheet entries for this date
+        has_entries = False
+        hours = 0
+        entries = []
+        
+        if not df_timesheets.empty:
+            day_entries = df_timesheets[df_timesheets['date'].dt.date == current_date]
+            has_entries = not day_entries.empty
+            hours = day_entries['duration_hours'].sum() if has_entries else 0
+            
+            if has_entries:
+                for _, entry in day_entries.iterrows():
+                    entries.append({
+                        'job_name': entry['job_name'],
+                        'duration_formatted': entry['duration_formatted'],
+                        'duration_hours': entry['duration_hours'],
+                        'notes': entry['notes']
+                    })
+        
+        calendar_dates.append({
+            'date': current_date,
+            'day': current_date.day,
+            'weekday': current_date.strftime('%A'),
+            'has_entries': has_entries,
+            'hours': hours,
+            'entries': entries
+        })
+    
+    return calendar_dates
+
+def get_day_calendar_data(date_obj, df_timesheets):
+    """Generate calendar data for a specific day"""
+    # Check if there are timesheet entries for this date
+    has_entries = False
+    hours = 0
+    entries = []
+    
+    if not df_timesheets.empty:
+        day_entries = df_timesheets[df_timesheets['date'].dt.date == date_obj]
+        has_entries = not day_entries.empty
+        hours = day_entries['duration_hours'].sum() if has_entries else 0
+        
+        if has_entries:
+            for _, entry in day_entries.iterrows():
+                entries.append({
+                    'id': entry['id'],
+                    'job_name': entry['job_name'],
+                    'duration_formatted': entry['duration_formatted'],
+                    'duration_hours': entry['duration_hours'],
+                    'start_time': entry['start_time'].strftime('%H:%M:%S') if entry['start_time'] else None,
+                    'end_time': entry['end_time'].strftime('%H:%M:%S') if entry['end_time'] else None,
+                    'type': entry['type'],
+                    'notes': entry['notes']
+                })
+    
+    return {
+        'date': date_obj,
+        'weekday': date_obj.strftime('%A'),
+        'has_entries': has_entries,
+        'hours': hours,
+        'entries': entries
+    }
+
+def generate_calendar_heatmap(df_timesheets, year, month):
+    """Generate a calendar heatmap for a specific month"""
+    if df_timesheets.empty:
+        return None
+    
+    # Create a figure and axis
+    fig, ax = plt.subplots(figsize=(12, 8))
+    
+    # Get the number of days in the month
+    _, num_days = calendar.monthrange(year, month)
+    
+    # Get the day of the week for the first day (0 = Monday, 6 = Sunday)
+    first_day = date(year, month, 1)
+    first_weekday = first_day.weekday()
+    
+    # Adjust for Sunday as the first day of the week
+    first_weekday = (first_weekday + 1) % 7
+    
+    # Create a matrix for the heatmap (6 rows x 7 columns)
+    data = np.zeros((6, 7))
+    
+    # Fill the matrix with hours worked
+    for day in range(1, num_days + 1):
+        current_date = date(year, month, day)
+        
+        # Calculate the row and column in the matrix
+        weekday = (current_date.weekday() + 1) % 7  # Adjust for Sunday as the first day
+        week = (day + first_weekday - 1) // 7
+        
+        # Check if there are timesheet entries for this date
+        if not df_timesheets.empty:
+            day_entries = df_timesheets[df_timesheets['date'].dt.date == current_date]
+            hours = day_entries['duration_hours'].sum() if not day_entries.empty else 0
+            data[week, weekday] = hours
+    
+    # Create a custom colormap
+    cmap = LinearSegmentedColormap.from_list('custom_green', ['#f8f9fa', '#d4edda', '#4CAF50'], N=256)
+    
+    # Create the heatmap
+    heatmap = ax.imshow(data, cmap=cmap, aspect='auto')
+    
+    # Set the ticks and labels
+    ax.set_xticks(np.arange(7))
+    ax.set_yticks(np.arange(6))
+    ax.set_xticklabels(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'])
+    ax.set_yticklabels([f'Week {i+1}' for i in range(6)])
+    
+    # Add the day numbers to the cells
+    for i in range(6):
+        for j in range(7):
+            day_num = i * 7 + j + 1 - first_weekday
+            if 1 <= day_num <= num_days:
+                ax.text(j, i, str(day_num), ha='center', va='center', color='black')
+    
+    # Add a colorbar
+    cbar = plt.colorbar(heatmap, ax=ax, orientation='vertical', pad=0.01)
+    cbar.set_label('Hours Worked')
+    
+    # Set the title
+    ax.set_title(f'Hours Worked - {calendar.month_name[month]} {year}')
+    
+    # Remove the grid
+    ax.grid(False)
+    
+    # Adjust the layout
+    plt.tight_layout()
+    
+    return fig
+
+def get_unread_notifications_count():
+    """Get the count of unread notifications"""
+    return sum(1 for n in st.session_state.notifications if not n['read'])
+
+def mark_notification_as_read(notification_id):
+    """Mark a notification as read"""
+    for i, notification in enumerate(st.session_state.notifications):
+        if notification['id'] == notification_id:
+            st.session_state.notifications[i]['read'] = True
+            break
 
 # Sidebar - Authentication
 with st.sidebar:
@@ -909,7 +1588,7 @@ with st.sidebar:
         
         # Navigation
         st.subheader("Navigation")
-        tabs = ["Dashboard", "Timesheets", "Clients", "Reports", "Settings"]
+        tabs = ["Dashboard", "Timesheets", "Calendar", "Clients", "Reports", "Analytics", "Settings"]
         selected_tab = st.radio("Select Section", tabs, index=tabs.index(st.session_state.active_tab))
         
         if selected_tab != st.session_state.active_tab:
@@ -917,6 +1596,21 @@ with st.sidebar:
             # Reset selected client when changing tabs
             if selected_tab != "Clients":
                 st.session_state.selected_client = None
+        
+        # Notifications
+        unread_count = get_unread_notifications_count()
+        if unread_count > 0:
+            st.markdown(f"""
+            <div style="margin-top: 20px;">
+                <h4>Notifications <span class="notification-badge">{unread_count}</span></h4>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            for notification in st.session_state.notifications:
+                if not notification['read']:
+                    if st.button(f"{notification['message']} - {notification['date']}", key=f"notif_{notification['id']}"):
+                        mark_notification_as_read(notification['id'])
+                        st.rerun()
         
         # Refresh button
         if st.button("Refresh Data"):
@@ -1013,15 +1707,15 @@ else:
             with col4:
                 st.markdown(f"""
                 <div class="metric-card">
-                    <div class="metric-value">{metrics['most_common_job']}</div>
-                    <div class="metric-label">Most Common Job</div>
+                    <div class="metric-value">{metrics['productivity_score']}%</div>
+                    <div class="metric-label">Productivity Score</div>
                 </div>
                 """, unsafe_allow_html=True)
             
             st.markdown("---")
             
             # Second row of metrics
-            col1, col2 = st.columns(2)
+            col1, col2, col3 = st.columns(3)
             
             with col1:
                 st.markdown(f"""
@@ -1036,6 +1730,14 @@ else:
                 <div class="metric-card">
                     <div class="metric-value">{metrics['non_billable_hours']}</div>
                     <div class="metric-label">Non-Billable Hours</div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with col3:
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-value">{metrics['utilization_rate']}%</div>
+                    <div class="metric-label">Utilization Rate</div>
                 </div>
                 """, unsafe_allow_html=True)
             
@@ -1057,7 +1759,8 @@ else:
                         names='Job',
                         title='Distribution of Hours by Job',
                         hover_data=['Hours Formatted', 'Entry Count', 'Percentage'],
-                        labels={'Hours Formatted': 'Total Time', 'Entry Count': 'Number of Entries', 'Percentage': '% of Total'}
+                        labels={'Hours Formatted': 'Total Time', 'Entry Count': 'Number of Entries', 'Percentage': '% of Total'},
+                        color_discrete_sequence=px.colors.sequential.Greens
                     )
                     fig.update_traces(textposition='inside', textinfo='percent+label')
                     st.plotly_chart(fig, use_container_width=True)
@@ -1090,7 +1793,8 @@ else:
                         title='Hours by Day of Week',
                         labels={'day_of_week': 'Day', 'duration_hours': 'Hours', 'id': 'Entries'},
                         hover_data=['id'],
-                        category_orders={"day_of_week": day_order}
+                        category_orders={"day_of_week": day_order},
+                        color_discrete_sequence=['#4CAF50']
                     )
                     st.plotly_chart(fig, use_container_width=True)
                 else:
@@ -1112,7 +1816,8 @@ else:
                         y='hours',
                         markers=True,
                         title='Weekly Hours Trend',
-                        labels={'week_label': 'Week', 'hours': 'Hours'}
+                        labels={'week_label': 'Week', 'hours': 'Hours'},
+                        color_discrete_sequence=['#4CAF50']
                     )
                     fig.update_layout(xaxis_title="Week", yaxis_title="Hours")
                     st.plotly_chart(fig, use_container_width=True)
@@ -1500,400 +2205,49 @@ else:
                 else:
                     st.error("Selected timesheet entry not found.")
     
-    # Clients
-    elif active_tab == "Clients":
-        if st.session_state.selected_client is None:
-            st.markdown('<h1 class="main-header">Client Management</h1>', unsafe_allow_html=True)
-            
-            # Search and filter
-            st.session_state.client_search = st.text_input("Search Clients", st.session_state.client_search)
-            
-            # Filter clients based on search
-            filtered_clients = search_clients(st.session_state.client_search, st.session_state.clients)
-            
-            if not filtered_clients:
-                st.info("No clients found matching your search criteria.")
-            else:
-                # Display clients in a grid
-                cols = st.columns(3)
-                for i, client in enumerate(filtered_clients):
-                    with cols[i % 3]:
-                        st.markdown(f"""
-                        <div class="client-card">
-                            <h3>{client['name']}</h3>
-                            <p><strong>Contact:</strong> {client['contact']}</p>
-                            <p><strong>Email:</strong> {client['email']}</p>
-                            <p><strong>Status:</strong> <span class="status-badge status-{client['status']}">{client['status'].upper()}</span></p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        
-                        if st.button(f"View Profile", key=f"view_{client['id']}"):
-                            st.session_state.selected_client = client['id']
-                            st.rerun()
-        else:
-            # Display client profile
-            client = get_client_by_id(st.session_state.selected_client)
-            
-            if client:
-                # Back button
-                if st.button("← Back to Clients"):
-                    st.session_state.selected_client = None
-                    st.rerun()
-                
-                st.markdown(f'<h1 class="main-header">Client Profile: {client["name"]}</h1>', unsafe_allow_html=True)
-                
-                # Client profile layout
-                col1, col2 = st.columns([1, 2])
-                
-                with col1:
-                    st.image(client['avatar'], width=150)
-                    
-                    st.markdown(f"""
-                    <div class="client-profile-section">
-                        <h4>Contact Information</h4>
-                        <p><strong>Contact:</strong> {client['contact']}</p>
-                        <p><strong>Email:</strong> {client['email']}</p>
-                        <p><strong>Phone:</strong> {client['phone']}</p>
-                    </div>
-                    
-                    <div class="client-profile-section">
-                        <h4>Status</h4>
-                        <p><span class="status-badge status-{client['status']}">{client['status'].upper()}</span></p>
-                    </div>
-                    
-                    <div class="client-profile-section">
-                        <h4>Industry</h4>
-                        <p>{client['industry']}</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                
-                with col2:
-                    # Client stats
-                    st.markdown("""
-                    <div class="client-profile-section">
-                        <h4>Client Statistics</h4>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    stat_cols = st.columns(3)
-                    with stat_cols[0]:
-                        st.markdown(f"""
-                        <div class="client-stat">
-                            <div class="client-stat-value">{client['total_hours']}</div>
-                            <div class="client-stat-label">Total Hours</div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    
-                    with stat_cols[1]:
-                        st.markdown(f"""
-                        <div class="client-stat">
-                            <div class="client-stat-value">${client['billing_rate']}</div>
-                            <div class="client-stat-label">Hourly Rate</div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    
-                    with stat_cols[2]:
-                        st.markdown(f"""
-                        <div class="client-stat">
-                            <div class="client-stat-value">${client['total_hours'] * client['billing_rate']:,.2f}</div>
-                            <div class="client-stat-label">Total Billed</div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    
-                    # Projects
-                    st.markdown("""
-                    <div class="client-profile-section">
-                        <h4>Projects</h4>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    for project in client['projects']:
-                        st.markdown(f"- {project}")
-                    
-                    # Notes
-                    st.markdown("""
-                    <div class="client-profile-section">
-                        <h4>Notes</h4>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    st.markdown(client['notes'])
-                
-                # Client timesheets
-                st.markdown("""
-                <div class="client-profile-section">
-                    <h4>Recent Timesheets</h4>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                # Get client timesheets
-                client_timesheets = get_client_timesheets(client['id'])
-                
-                if client_timesheets:
-                    # Convert to DataFrame
-                    df_client_timesheets = get_timesheet_dataframe(client_timesheets)
-                    
-                    if not df_client_timesheets.empty:
-                        # Display recent timesheets
-                        for _, entry in df_client_timesheets.head(5).iterrows():
-                            st.markdown(f"""
-                            <div class="timesheet-detail">
-                                <div class="timesheet-date">{entry['date_str']} ({entry['day_of_week']})</div>
-                                <div class="timesheet-job">{entry['job_name']}</div>
-                                <div class="timesheet-duration">Duration: {entry['duration_formatted']} ({entry['duration_hours']:.2f} hours)</div>
-                                <div class="timesheet-notes">{entry['notes'] if entry['notes'] else 'No notes'}</div>
-                            </div>
-                            """, unsafe_allow_html=True)
-                        
-                        # Show all button
-                        if st.button("View All Timesheets"):
-                            # Display all timesheets in a DataFrame
-                            display_df = df_client_timesheets[['date_str', 'day_of_week', 'job_name', 'duration_formatted', 'notes']].copy()
-                            display_df.columns = ['Date', 'Day', 'Job', 'Duration', 'Notes']
-                            st.dataframe(display_df, use_container_width=True)
-                            
-                            # Export options
-                            col1, col2 = st.columns(2)
-                            with col1:
-                                st.markdown(get_download_link(display_df, f"{client['name']}_timesheets.csv", "Download as CSV"), unsafe_allow_html=True)
-                            with col2:
-                                st.markdown(get_excel_download_link(display_df, f"{client['name']}_timesheets.xlsx", "Download as Excel"), unsafe_allow_html=True)
-                    else:
-                        st.info("No timesheet data available for this client.")
-                else:
-                    st.info("No timesheet data available for this client.")
-            else:
-                st.error("Client not found.")
-                st.session_state.selected_client = None
-    
-    # Reports
-    elif active_tab == "Reports":
-        st.markdown('<h1 class="main-header">Timesheet Reports</h1>', unsafe_allow_html=True)
+    # Calendar
+    elif active_tab == "Calendar":
+        st.markdown('<h1 class="main-header">Timesheet Calendar</h1>', unsafe_allow_html=True)
         
-        # Show date range in the main content area
-        st.caption(f"Showing data for: {st.session_state.date_range[0]} to {st.session_state.date_range[1]}")
+        # Calendar view selector
+        col1, col2, col3 = st.columns([2, 1, 1])
         
-        if df_timesheets.empty:
-            st.info(f"No timesheet data available for the selected date range. Try selecting a different date range or adding new entries.")
-            
-            # Debug info for troubleshooting
-            if st.session_state.debug_info:
-                with st.expander("Debug Information"):
-                    st.json(st.session_state.debug_info)
-        else:
-            # Create tabs for different reports
-            report_tabs = st.tabs(["Weekly Summary", "Job Summary", "Daily Summary", "Client Summary"])
-            
-            # Weekly Summary Report
-            with report_tabs[0]:
-                st.subheader("Weekly Hours Summary")
-                
-                weekly_data = generate_weekly_report(df_timesheets)
-                
-                if not weekly_data.empty:
-                    # Display weekly summary
-                    weekly_display = weekly_data[['week_label', 'hours_formatted', 'hours']].copy()
-                    weekly_display.columns = ['Week', 'Hours', 'Decimal Hours']
-                    st.dataframe(weekly_display, use_container_width=True)
-                    
-                    # Chart
-                    fig = px.bar(
-                        weekly_data,
-                        x='week_label',
-                        y='hours',
-                        title='Weekly Hours',
-                        labels={'week_label': 'Week', 'hours': 'Hours'}
-                    )
-                    fig.update_layout(xaxis_title="Week", yaxis_title="Hours")
-                    st.plotly_chart(fig, use_container_width=True)
-                    
-                    # Export options
-                    st.markdown(get_excel_download_link(weekly_display, "weekly_summary.xlsx", "Download Weekly Summary"), unsafe_allow_html=True)
-                else:
-                    st.info("No weekly data available")
-            
-            # Job Summary Report
-            with report_tabs[1]:
-                st.subheader("Job Hours Summary")
-                
-                job_data = generate_job_summary(df_timesheets)
-                
-                if not job_data.empty:
-                    # Display job summary
-                    job_display = job_data[['Job', 'Hours Formatted', 'Hours', 'Entry Count', 'Percentage']].copy()
-                    job_display.columns = ['Job', 'Hours', 'Decimal Hours', 'Number of Entries', '% of Total']
-                    st.dataframe(job_display, use_container_width=True)
-                    
-                    # Chart
-                    fig = px.pie(
-                        job_data,
-                        values='Hours',
-                        names='Job',
-                        title='Distribution of Hours by Job',
-                        hover_data=['Hours Formatted', 'Entry Count', 'Percentage']
-                    )
-                    fig.update_traces(textposition='inside', textinfo='percent+label')
-                    st.plotly_chart(fig, use_container_width=True)
-                    
-                    # Export options
-                    st.markdown(get_excel_download_link(job_display, "job_summary.xlsx", "Download Job Summary"), unsafe_allow_html=True)
-                else:
-                    st.info("No job data available")
-            
-            # Daily Summary Report
-            with report_tabs[2]:
-                st.subheader("Daily Hours Summary")
-                
-                daily_data = generate_daily_summary(df_timesheets)
-                
-                if not daily_data.empty:
-                    # Display daily summary
-                    daily_display = daily_data[['Date String', 'Day of Week', 'Hours Formatted', 'Hours', 'Entry Count']].copy()
-                    daily_display.columns = ['Date', 'Day', 'Hours', 'Decimal Hours', 'Number of Entries']
-                    st.dataframe(daily_display, use_container_width=True)
-                    
-                    # Chart
-                    fig = px.bar(
-                        daily_data,
-                        x='Date String',
-                        y='Hours',
-                        title='Daily Hours',
-                        labels={'Date String': 'Date', 'Hours': 'Hours'},
-                        hover_data=['Day of Week', 'Entry Count']
-                    )
-                    fig.update_layout(xaxis_title="Date", yaxis_title="Hours")
-                    st.plotly_chart(fig, use_container_width=True)
-                    
-                    # Export options
-                    st.markdown(get_excel_download_link(daily_display, "daily_summary.xlsx", "Download Daily Summary"), unsafe_allow_html=True)
-                else:
-                    st.info("No daily data available")
-            
-            # Client Summary Report
-            with report_tabs[3]:
-                st.subheader("Client Hours Summary")
-                
-                # In a real implementation, you would aggregate timesheet data by client
-                # For this example, we'll create mock client summary data
-                
-                client_data = pd.DataFrame({
-                    'Client': [client['name'] for client in st.session_state.clients],
-                    'Hours': [client['total_hours'] for client in st.session_state.clients],
-                    'Billing Rate': [client['billing_rate'] for client in st.session_state.clients]
-                })
-                
-                client_data['Total Billed'] = client_data['Hours'] * client_data['Billing Rate']
-                
-                # Display client summary
-                st.dataframe(client_data, use_container_width=True)
-                
-                # Chart
-                fig = px.bar(
-                    client_data,
-                    x='Client',
-                    y='Hours',
-                    title='Hours by Client',
-                    labels={'Client': 'Client', 'Hours': 'Hours'},
-                    hover_data=['Billing Rate', 'Total Billed']
-                )
-                st.plotly_chart(fig, use_container_width=True)
-                
-                # Export options
-                st.markdown(get_excel_download_link(client_data, "client_summary.xlsx", "Download Client Summary"), unsafe_allow_html=True)
-    
-    # Settings
-    elif active_tab == "Settings":
-        st.markdown('<h1 class="main-header">Settings</h1>', unsafe_allow_html=True)
+        with col1:
+            calendar_view = st.radio("Calendar View", ["Month", "Week", "Day"], horizontal=True, 
+                                    index=["month", "week", "day"].index(st.session_state.calendar_view))
+            st.session_state.calendar_view = calendar_view.lower()
         
-        # Create tabs for different settings
-        settings_tabs = st.tabs(["User Settings", "Application Settings", "API Settings"])
+        with col2:
+            # Month and year selector for month view
+            if st.session_state.calendar_view == "month":
+                month = st.selectbox("Month", list(calendar.month_name)[1:], 
+                                    index=st.session_state.calendar_date.month - 1)
+                st.session_state.calendar_date = st.session_state.calendar_date.replace(month=list(calendar.month_name)[1:].index(month) + 1)
         
-        # User Settings
-        with settings_tabs[0]:
-            st.subheader("User Profile")
-            
-            user_info = st.session_state.current_user
-            
-            col1, col2 = st.columns([1, 2])
-            
-            with col1:
-                st.image("https://www.gravatar.com/avatar/e64c7d89f26bd1972efa854d13d7dd61?s=200", width=150)
-            
-            with col2:
-                st.markdown(f"""
-                <div class="user-info">
-                    <p><strong>Name:</strong> {user_info['first_name']} {user_info['last_name']}</p>
-                    <p><strong>Email:</strong> {user_info['email'] or 'N/A'}</p>
-                    <p><strong>Company:</strong> {user_info.get('company_name', 'N/A')}</p>
-                    <p><strong>User ID:</strong> {user_info['id']}</p>
-                </div>
-                """, unsafe_allow_html=True)
-            
-            # Notification settings
-            st.subheader("Notification Settings")
-            
-            email_notifications = st.checkbox("Email Notifications", value=True)
-            daily_summary = st.checkbox("Daily Summary", value=True)
-            weekly_summary = st.checkbox("Weekly Summary", value=True)
-            
-            if st.button("Save Notification Settings"):
-                st.success("Notification settings saved successfully!")
-        
-        # Application Settings
-        with settings_tabs[1]:
-            st.subheader("Application Settings")
-            
-            # Theme settings
-            st.subheader("Theme Settings")
-            
-            theme = st.selectbox("Theme", ["Light", "Dark", "System Default"], index=0)
-            accent_color = st.color_picker("Accent Color", "#4CAF50")
-            
-            # Date and time settings
-            st.subheader("Date and Time Settings")
-            
-            date_format = st.selectbox("Date Format", ["MM/DD/YYYY", "DD/MM/YYYY", "YYYY-MM-DD"], index=2)
-            time_format = st.selectbox("Time Format", ["12-hour", "24-hour"], index=1)
-            
-            if st.button("Save Application Settings"):
-                st.success("Application settings saved successfully!")
-        
-        # API Settings
-        with settings_tabs[2]:
-            st.subheader("API Settings")
-            
-            # API token
-            st.text_input("API Token", value=st.session_state.api_token, type="password", disabled=True)
-            
-            # API endpoints
-            st.subheader("API Endpoints")
-            
-            st.markdown(f"""
-            <div class="user-info">
-                <p><strong>Base URL:</strong> {BASE_URL}</p>
-                <p><strong>Timesheets Endpoint:</strong> {TIMESHEETS_ENDPOINT}</p>
-                <p><strong>Jobcodes Endpoint:</strong> {JOBCODES_ENDPOINT}</p>
-                <p><strong>Users Endpoint:</strong> {USERS_ENDPOINT}</p>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # Test API connection
-            if st.button("Test API Connection"):
-                with st.spinner("Testing API connection..."):
-                    response = make_api_request(CURRENT_USER_ENDPOINT)
-                    
-                    if response:
-                        st.success("API connection successful!")
-                    else:
-                        st.error("API connection failed. Please check your API token.")
-
-# Footer
-st.markdown("---")
-st.markdown(
-    """
-    <div style="text-align: center; color: #666;">
-        <p>TSheets CRM Manager v2.0 | Developed with Streamlit</p>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+        with col3:
+            if st.session_state.calendar_view == "month":
+                year = st.selectbox("Year", range(2020, 2026), 
+                                   index=list(range(2020, 2026)).index(st.session_state.calendar_date.year))
+                st.session_state.calendar_date = st.session_state.calendar_date.replace(year=year)
+            elif st.session_state.calendar_view == "week":
+                # Week selector
+                week_dates = []
+                current_date = st.session_state.calendar_date
+                start_of_week = current_date - timedelta(days=current_date.weekday() + 1)
+                if start_of_week.weekday() == 6:  # If it's already Sunday
+                    start_of_week = current_date
+                
+                for i in range(7):
+                    week_dates.append(start_of_week + timedelta(days=i))
+                
+                week_label = f"{week_dates[0].strftime('%b %d')} - {week_dates[6].strftime('%b %d, %Y')}"
+                
+                col_left, col_mid, col_right = st.columns([1, 3, 1])
+                with col_left:
+                    if st.button("◀ Previous Week"):
+                        st.session_state.calendar_date = st.session_state.calendar_date - timedelta(days=7)
+                        st.rerun()
+                
+                with col_mid:
+                    st.markdown(f"<h3 style='text-align: center;'>{week_label}</h3>", unsafe_allow_html=True)
+               
