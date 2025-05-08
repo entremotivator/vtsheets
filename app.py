@@ -1636,7 +1636,7 @@ def display_timesheets_tab():
                         st.success("Timesheet updated!")
                         # No st.experimental_rerun() here, success message will show, data reloads in update_timesheet
                     else:
-                        st.error(f"Failed to update timesheet. {st.session_state.error_message or \"Unknown error.\"}")
+                        st.error(f"Failed to update timesheet. {st.session_state.error_message or 'Unknown error.'}")
     
     elif action == "Delete Timesheet":
         st.markdown("<h3 class=\'subsection-header\'>Delete Timesheet Entry</h3>", unsafe_allow_html=True)
