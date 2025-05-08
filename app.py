@@ -1659,7 +1659,7 @@ def display_timesheets_tab():
                     st.success("Timesheet deleted!")
                     # No st.experimental_rerun() here, success message will show, data reloads in delete_timesheet
                 else:
-                    st.error(f'Failed to delete timesheet. {st.session_state.error_message or "Unknown error."}')
+                    file_name = f"timesheet_summary_by_{report_type.lower().replace(' ', '_')}.csv"
 
 def display_reports_tab():
     st.markdown("<h2 class=\'section-header\'>Reports & Analytics</h2>", unsafe_allow_html=True)
