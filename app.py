@@ -761,7 +761,7 @@ def generate_calendar_events(df_timesheets):
             'start': start_time.strftime('%Y-%m-%dT%H:%M:%S'),
             'end': end_time.strftime('%Y-%m-%dT%H:%M:%S'),
             'backgroundColor': get_jobcode_color(row['job']),
-            'borderColor': get_jobcode_color(row['job']),  get_jobcode_color(row['job']),
+            'borderColor': get_jobcode_color(row['job']),
             'borderColor': get_jobcode_color(row['job']),
             'extendedProps': {
                 'jobcode': row['job'],
