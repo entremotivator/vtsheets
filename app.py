@@ -1767,7 +1767,7 @@ def display_settings_tab():
         calculate_employee_performance_metrics.clear()
         get_timesheets_for_month_display.clear()
         st.success("All application data caches have been cleared. Data will be re-fetched on next load.")
-        st.experimental_rerun()
+        st.rerun()
 
 # --- Main Application Logic ---
 def main():
