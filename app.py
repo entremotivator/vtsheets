@@ -1799,7 +1799,7 @@ def main():
                     with st.spinner("Authenticating..."):
                         if authenticate():
                             st.success("Authentication successful!")
-                            st.experimental_rerun()
+                            st.rerun()
                         else:
                             # Error message is set in authenticate() or make_api_request()
                             msg = st.session_state.error_message or 'Authentication failed. Check token and connection.'
