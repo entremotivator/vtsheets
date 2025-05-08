@@ -1576,7 +1576,7 @@ def display_timesheets_tab():
                 if create_timesheet(new_ts_data):
                     st.success("Timesheet creation initiated!") # Message set by create_timesheet on success
                 else:
-                    st.error(f"Failed to create timesheet. {st.session_state.error_message or \"Unknown error.\"}")
+                    st.error(f"Failed to create timesheet. {st.session_state.error_message or 'Unknown error.'}")
     
     elif action == "Edit Timesheet":
         st.markdown("<h3 class=\'subsection-header\'>Edit Timesheet Entry</h3>", unsafe_allow_html=True)
