@@ -1845,7 +1845,7 @@ def main():
                     calculate_employee_performance_metrics.clear()
                     get_timesheets_for_month_display.clear()
                 st.success("All data refreshed!")
-                st.experimental_rerun()
+                st.rerun()
             if st.session_state.last_refresh:
                 st.caption(f"Last refresh: {st.session_state.last_refresh.strftime("%Y-%m-%d %H:%M:%S")}")
 
