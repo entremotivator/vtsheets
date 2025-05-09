@@ -7,17 +7,7 @@ from datetime import datetime, timedelta, date
 import time
 import plotly.express as px
 import plotly.graph_objects as go
-import io
-import base64
 import calendar
-import re
-import altair as alt
-from PIL import Image
-from io import BytesIO
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-from matplotlib.colors import LinearSegmentedColormap
-import seaborn as sns
 import traceback
 
 # Set page configuration
@@ -27,718 +17,6 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
-
-# Custom CSS for better styling
-st.markdown("""
-<style>
-    /* General Styles */
-    .main-header {
-        font-size: 2.5rem;
-        font-weight: bold;
-        margin-bottom: 1rem;
-        color: #2C3E50;
-    }
-    .section-header {
-        font-size: 1.8rem;
-        font-weight: bold;
-        margin-top: 1rem;
-        margin-bottom: 0.5rem;
-        color: #34495E;
-    }
-    .subsection-header {
-        font-size: 1.5rem;
-        font-weight: bold;
-        margin-top: 0.8rem;
-        margin-bottom: 0.4rem;
-        color: #34495E;
-    }        
-    .info-text {
-        font-size: 1rem;
-        color: #555;
-    }
-    .success-message {
-        background-color: #d4edda;
-        color: #155724;
-        padding: 15px;
-        border-radius: 5px;
-        margin-bottom: 15px;
-        border-left: 5px solid #155724;
-    }
-    .error-message {
-        background-color: #f8d7da;
-        color: #721c24;
-        padding: 15px;
-        border-radius: 5px;
-        margin-bottom: 15px;
-        border-left: 5px solid #721c24;
-    }
-    .warning-message {
-        background-color: #fff3cd;
-        color: #856404;
-        padding: 15px;
-        border-radius: 5px;
-        margin-bottom: 15px;
-        border-left: 5px solid #856404;
-    }
-    .info-message {
-        background-color: #d1ecf1;
-        color: #0c5460;
-        padding: 15px;
-        border-radius: 5px;
-        margin-bottom: 15px;
-        border-left: 5px solid #0c5460;
-    }
-    
-    /* Button Styles */
-    .stButton button {
-        width: 100%;
-        border-radius: 5px;
-        font-weight: 500;
-        transition: all 0.3s ease;
-    }
-    .stButton button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    }
-    
-    /* User Info */
-    .user-info {
-        background-color: #f8f9fa;
-        padding: 20px;
-        border-radius: 10px;
-        margin-bottom: 20px;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-        border-left: 5px solid #4CAF50;
-    }
-    
-    /* Client Card */
-    .client-card {
-        background-color: white;
-        border-radius: 10px;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-        padding: 25px;
-        margin-bottom: 25px;
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-        border-top: 5px solid #4CAF50;
-    }
-    .client-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
-    }
-    
-    /* Tabs */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 24px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        height: 50px;
-        white-space: pre-wrap;
-        background-color: #f8f9fa;
-        border-radius: 8px 8px 0px 0px;
-        gap: 1px;
-        padding: 10px 20px;
-        font-weight: 500;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: #e9ecef;
-        border-bottom: 3px solid #4CAF50;
-    }
-    
-    /* Metric Cards */
-    .metric-card {
-        background-color: white;
-        border-radius: 10px;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-        padding: 25px;
-        text-align: center;
-        height: 100%;
-        transition: transform 0.3s ease;
-        border-top: 4px solid #4CAF50;
-    }
-    .metric-card:hover {
-        transform: translateY(-5px);
-    }
-    .metric-value {
-        font-size: 2.2rem;
-        font-weight: bold;
-        color: #4CAF50;
-        margin-bottom: 10px;
-    }
-    .metric-label {
-        font-size: 1.1rem;
-        color: #555;
-        font-weight: 500;
-    }
-    
-    /* Download Links */
-    .download-link {
-        text-decoration: none;
-        color: white;
-        background-color: #4CAF50;
-        padding: 12px 20px;
-        border-radius: 5px;
-        text-align: center;
-        display: inline-block;
-        margin-top: 15px;
-        font-weight: 500;
-        transition: background-color 0.3s ease, transform 0.3s ease;
-    }
-    .download-link:hover {
-        background-color: #45a049;
-        transform: translateY(-2px);
-    }
-    
-    /* Sidebar */
-    .sidebar .sidebar-content {
-        background-color: #f8f9fa;
-    }
-    
-    /* Client Profile */
-    .client-profile {
-        background-color: white;
-        border-radius: 10px;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-        padding: 25px;
-        margin-bottom: 25px;
-    }
-    .client-profile h3 {
-        color: #2C3E50;
-        border-bottom: 1px solid #eee;
-        padding-bottom: 15px;
-        margin-bottom: 20px;
-    }
-    .client-profile-section {
-        margin-bottom: 20px;
-    }
-    .client-profile-section h4 {
-        color: #34495E;
-        margin-bottom: 15px;
-        font-weight: 600;
-    }
-    .client-contact {
-        display: flex;
-        align-items: center;
-        margin-bottom: 15px;
-    }
-    .client-contact-icon {
-        margin-right: 15px;
-        color: #3498DB;
-    }
-    
-    /* Timesheet Detail */
-    .timesheet-detail {
-        background-color: #f8f9fa;
-        border-left: 4px solid #4CAF50;
-        padding: 20px;
-        margin-bottom: 20px;
-        border-radius: 0 10px 10px 0;
-        transition: transform 0.3s ease;
-    }
-    .timesheet-detail:hover {
-        transform: translateX(5px);
-    }
-    .timesheet-date {
-        font-weight: bold;
-        color: #2C3E50;
-        font-size: 1.1rem;
-        margin-bottom: 5px;
-    }
-    .timesheet-duration {
-        font-weight: bold;
-        color: #4CAF50;
-        margin: 5px 0;
-    }
-    .timesheet-job {
-        color: #3498DB;
-        font-weight: 500;
-        margin: 5px 0;
-    }
-    .timesheet-notes {
-        font-style: italic;
-        color: #7F8C8D;
-        margin-top: 10px;
-        padding-top: 5px;
-        border-top: 1px dashed #ddd;
-    }
-    
-    /* Status Badges */
-    .status-badge {
-        display: inline-block;
-        padding: 5px 12px;
-        border-radius: 15px;
-        font-size: 0.85rem;
-        font-weight: bold;
-    }
-    .status-active {
-        background-color: #d4edda;
-        color: #155724;
-    }
-    .status-inactive {
-        background-color: #f8d7da;
-        color: #721c24;
-    }
-    .status-pending {
-        background-color: #fff3cd;
-        color: #856404;
-    }
-    
-    /* Avatar */
-    .avatar {
-        width: 120px;
-        height: 120px;
-        border-radius: 50%;
-        object-fit: cover;
-        margin-bottom: 20px;
-        border: 4px solid #4CAF50;
-    }
-    
-    /* Client Stats */
-    .client-stats {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 20px;
-    }
-    .client-stat {
-        text-align: center;
-        flex: 1;
-        padding: 15px;
-        background-color: #f8f9fa;
-        border-radius: 10px;
-        margin: 0 8px;
-        transition: transform 0.3s ease;
-    }
-    .client-stat:hover {
-        transform: translateY(-5px);
-    }
-    .client-stat-value {
-        font-size: 1.8rem;
-        font-weight: bold;
-        color: #4CAF50;
-    }
-    .client-stat-label {
-        font-size: 0.9rem;
-        color: #555;
-        margin-top: 5px;
-    }
-    
-    /* Activity Timeline */
-    .activity-timeline {
-        position: relative;
-        margin-left: 30px;
-        padding-left: 20px;
-    }
-    .activity-timeline:before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 2px;
-        height: 100%;
-        background-color: #e9ecef;
-    }
-    .activity-item {
-        position: relative;
-        padding-left: 30px;
-        margin-bottom: 25px;
-    }
-    .activity-item:before {
-        content: '';
-        position: absolute;
-        left: -10px;
-        top: 0;
-        width: 16px;
-        height: 16px;
-        border-radius: 50%;
-        background-color: #4CAF50;
-        border: 3px solid #fff;
-        box-shadow: 0 0 0 1px #4CAF50;
-    }
-    .activity-date {
-        font-size: 0.85rem;
-        color: #7F8C8D;
-        margin-bottom: 5px;
-    }
-    .activity-content {
-        background-color: #f8f9fa;
-        padding: 15px;
-        border-radius: 8px;
-        margin-top: 8px;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-    }
-    
-    /* Calendar Styles */
-    .calendar-container {
-        background-color: white;
-        border-radius: 10px;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-        padding: 20px;
-        margin-bottom: 20px;
-    }
-    .calendar-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 15px;
-    }
-    .calendar-title {
-        font-size: 1.5rem;
-        font-weight: bold;
-        color: #2C3E50;
-    }
-    .calendar-nav {
-        display: flex;
-        gap: 10px;
-    }
-    .calendar-nav button {
-        background-color: #f8f9fa;
-        border: none;
-        border-radius: 5px;
-        padding: 5px 10px;
-        cursor: pointer;
-        transition: background-color 0.3s ease;
-    }
-    .calendar-nav button:hover {
-        background-color: #e9ecef;
-    }
-    .calendar-weekdays {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        gap: 5px;
-        margin-bottom: 10px;
-    }
-    .calendar-weekday {
-        text-align: center;
-        font-weight: bold;
-        padding: 10px;
-        background-color: #f8f9fa;
-        border-radius: 5px;
-    }
-    .calendar-days {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        gap: 5px;
-    }
-    .calendar-day {
-        text-align: center;
-        padding: 10px;
-        border-radius: 5px;
-        cursor: pointer;
-        transition: background-color 0.3s ease, transform 0.3s ease;
-        min-height: 80px;
-        display: flex;
-        flex-direction: column;
-        justify-content: flex-start;
-        align-items: center;
-        position: relative;
-        border: 1px solid #eee;
-    }
-    .calendar-day:hover {
-        background-color: #e9ecef;
-        transform: scale(1.02);
-    }
-    .calendar-day.today {
-        background-color: #d4edda;
-        color: #155724;
-        font-weight: bold;
-        border: 1px solid #155724;
-    }
-    .calendar-day.has-entries {
-        background-color: #d1ecf1;
-        color: #0c5460;
-    }
-    .calendar-day.has-entries.selected {
-        background-color: #4CAF50;
-        color: white;
-        border: 1px solid #3e8e41;
-    }
-    .calendar-day.selected {
-        background-color: #4CAF50;
-        color: white;
-        font-weight: bold;
-        border: 1px solid #3e8e41;
-    }
-    .calendar-day.other-month {
-        color: #aaa;
-        background-color: #fdfdfd;
-        cursor: default;
-    }
-    .day-number {
-        font-size: 0.9rem;
-        margin-bottom: 3px;
-        display: block;
-        width: 100%;
-        text-align: left;
-        padding-left: 5px;
-    }
-    .day-entry-indicator {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background-color: #3498DB;
-        position: absolute;
-        top: 8px;
-        right: 8px;
-    }
-    .day-entry-summary {
-        font-size: 0.75rem;
-        color: #555;
-        margin-top: auto;
-        padding-bottom: 5px;
-    }
-    .calendar-day.has-entries .day-entry-summary {
-        color: #0c5460;
-    }
-    .calendar-day.selected .day-entry-summary {
-        color: white;
-    }
-
-    /* Day View for Calendar */
-    .day-view {
-        background-color: white;
-        border-radius: 10px;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-        padding: 20px;
-        margin-top: 20px;
-    }
-    .day-view-header {
-        font-size: 1.3rem;
-        font-weight: bold;
-        color: #2C3E50;
-        margin-bottom: 15px;
-        padding-bottom: 10px;
-        border-bottom: 1px solid #eee;
-    }
-    .day-view-entry {
-        background-color: #f8f9fa;
-        border-left: 4px solid #4CAF50;
-        padding: 15px;
-        margin-bottom: 15px;
-        border-radius: 0 5px 5px 0;
-    }
-    .day-view-time {
-        font-weight: bold;
-        color: #2C3E50;
-    }
-    .day-view-job {
-        color: #3498DB;
-        font-weight: 500;
-        margin: 5px 0;
-    }
-    .day-view-duration {
-        font-weight: bold;
-        color: #4CAF50;
-    }
-    .day-view-notes {
-        font-style: italic;
-        color: #7F8C8D;
-        margin-top: 5px;
-    }
-    
-    /* Heat Map Calendar */
-    .heatmap-container {
-        background-color: white;
-        border-radius: 10px;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-        padding: 20px;
-        margin-bottom: 20px;
-    }
-    .heatmap-legend {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        margin-top: 10px;
-    }
-    .legend-item {
-        display: flex;
-        align-items: center;
-        margin: 0 10px;
-    }
-    .legend-color {
-        width: 20px;
-        height: 20px;
-        margin-right: 5px;
-        border-radius: 3px;
-    }
-    .legend-label {
-        font-size: 0.9rem;
-        color: #555;
-    }
-    
-    /* Analytics Dashboard */
-    .analytics-card {
-        background-color: white;
-        border-radius: 10px;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-        padding: 20px;
-        margin-bottom: 20px;
-        height: 100%;
-    }
-    .analytics-header {
-        font-size: 1.2rem;
-        font-weight: bold;
-        color: #2C3E50;
-        margin-bottom: 15px;
-        padding-bottom: 10px;
-        border-bottom: 1px solid #eee;
-    }
-    
-    /* Productivity Score */
-    .productivity-score {
-        text-align: center;
-        padding: 20px;
-    }
-    .score-value {
-        font-size: 3rem;
-        font-weight: bold;
-        color: #4CAF50;
-    }
-    .score-label {
-        font-size: 1.2rem;
-        color: #555;
-        margin-top: 10px;
-    }
-    
-    /* Progress Bar */
-    .progress-container {
-        margin: 15px 0;
-    }
-    .progress-label {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 5px;
-    }
-    .progress-bar {
-        height: 10px;
-        background-color: #f8f9fa;
-        border-radius: 5px;
-        overflow: hidden;
-    }
-    .progress-fill {
-        height: 100%;
-        background-color: #4CAF50;
-        border-radius: 5px;
-    }
-    
-    /* Notification Badge */
-    .notification-badge {
-        display: inline-block;
-        background-color: #dc3545;
-        color: white;
-        border-radius: 50%;
-        width: 20px;
-        height: 20px;
-        text-align: center;
-        line-height: 20px;
-        font-size: 0.8rem;
-        margin-left: 5px;
-    }
-    
-    /* Search Bar */
-    .search-container {
-        position: relative;
-        margin-bottom: 20px;
-    }
-    .search-icon {
-        position: absolute;
-        left: 10px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #aaa;
-    }
-    .search-input {
-        width: 100%;
-        padding: 10px 10px 10px 35px;
-        border: 1px solid #ddd;
-        border-radius: 5px;
-        font-size: 1rem;
-    }
-    .search-input:focus {
-        border-color: #4CAF50;
-        outline: none;
-    }
-    
-    /* Footer */
-    .footer {
-        text-align: center;
-        padding: 20px;
-        color: #666;
-        border-top: 1px solid #eee;
-        margin-top: 40px;
-    }
-    .footer-logo {
-        max-width: 100px;
-        margin-bottom: 10px;
-    }
-    .footer-links {
-        display: flex;
-        justify-content: center;
-        gap: 20px;
-        margin: 10px 0;
-    }
-    .footer-link {
-        color: #4CAF50;
-        text-decoration: none;
-    }
-    .footer-link:hover {
-        text-decoration: underline;
-    }
-    
-    /* Debug Info */
-    .debug-info {
-        background-color: #f8f9fa;
-        border: 1px solid #ddd;
-        border-radius: 5px;
-        padding: 15px;
-        margin-top: 15px;
-        font-family: monospace;
-        font-size: 0.9rem;
-        white-space: pre-wrap;
-        overflow-x: auto;
-    }
-    .debug-title {
-        font-weight: bold;
-        margin-bottom: 10px;
-        color: #333;
-    }
-    
-    /* Responsive Adjustments */
-    @media (max-width: 768px) {
-        .client-stats {
-            flex-direction: column;
-        }
-        .client-stat {
-            margin: 5px 0;
-        }
-        .calendar-weekday, .calendar-day {
-            padding: 5px;
-            font-size: 0.8rem;
-            min-height: 60px;
-        }
-        .day-number {
-            font-size: 0.8rem;
-        }
-        .day-entry-indicator {
-            width: 5px;
-            height: 5px;
-            top: 5px;
-            right: 5px;
-        }
-        .stTabs [data-baseweb="tab"] {
-            padding: 8px 10px;
-            font-size: 0.85rem;
-        }
-        .main-header {
-            font-size: 2rem;
-        }
-        .section-header {
-            font-size: 1.5rem;
-        }
-        .subsection-header {
-            font-size: 1.3rem;
-        }
-    }
-</style>
-""", unsafe_allow_html=True)
 
 # Constants
 BASE_URL = "https://rest.tsheets.com/api/v1"
@@ -792,11 +70,7 @@ def init_session_state():
     if "calendar_selected_date_for_details" not in st.session_state:
         st.session_state.calendar_selected_date_for_details = None
     if "notifications" not in st.session_state:
-        st.session_state.notifications = [
-            {"id": 1, "message": "New client added: Acme Corporation", "date": "2023-05-08", "read": False},
-            {"id": 2, "message": "Timesheet approval pending", "date": "2023-05-07", "read": False},
-            {"id": 3, "message": "Weekly report generated", "date": "2023-05-06", "read": True}
-        ]
+        st.session_state.notifications = []
     if "api_request_count" not in st.session_state:
         st.session_state.api_request_count = 0
     if "last_api_status" not in st.session_state:
@@ -807,6 +81,8 @@ def init_session_state():
         st.session_state.api_logs = []
     if "mock_data_mode" not in st.session_state:
         st.session_state.mock_data_mode = False
+    if "deleted_timesheets" not in st.session_state:
+        st.session_state.deleted_timesheets = []
 
 # Initialize session state
 init_session_state()
@@ -815,35 +91,23 @@ init_session_state()
 def make_api_request(endpoint, method="GET", params=None, data=None, timeout=30, max_retries=3, backoff_factor=0.5):
     """
     Make an API request to TSheets with retries, enhanced error handling, timeout, and connection diagnostics.
-    
-    Args:
-        endpoint (str): API endpoint URL
-        method (str): HTTP method (GET, POST, PUT, DELETE)
-        params (dict): URL parameters for the request
-        data (dict): JSON data for POST/PUT requests
-        timeout (int): Request timeout in seconds
-        max_retries (int): Maximum number of retry attempts
-        backoff_factor (float): Exponential backoff factor between retries
-        
-    Returns:
-        dict or None: JSON response data or None if request failed
     """
     # If mock data mode is enabled, return mock data instead of making real API calls
     if st.session_state.mock_data_mode:
         return get_mock_data(endpoint, method, params, data)
-    
+
     headers = {
         "Authorization": f"Bearer {st.session_state.api_token}",
         "Content-Type": "application/json"
     }
-    
+
     # Clear previous error for this attempt
     st.session_state.error_message = None
-    
+
     # Track API request count
     st.session_state.api_request_count += 1
     request_id = f"req_{st.session_state.api_request_count}"
-    
+
     # Prepare debug info
     debug_info = {
         "request_id": request_id,
@@ -990,11 +254,11 @@ def make_api_request(endpoint, method="GET", params=None, data=None, timeout=30,
             debug_info["attempts"].append(attempt_info)
             time.sleep(backoff_factor * (2 ** attempt))
             continue
-    
+
     # If all retries fail
     if not st.session_state.error_message:  # If loop finished without setting a specific final error
         st.session_state.error_message = f"Failed to connect to API after {max_retries} retries."
-    
+
     debug_info["final_status"] = "failed_all_retries"
     st.session_state.debug_info = debug_info
     st.session_state.last_api_status = "failed"
@@ -1145,7 +409,7 @@ def get_mock_data(endpoint, method, params=None, data=None):
                     }
                 }
             }
-    
+
     # Default mock response
     return {
         "results": {
@@ -1196,7 +460,7 @@ def authenticate():
     """Authenticate with TSheets API and handle connection issues"""
     # First, test the connection with a simple request
     test_response = make_api_request(CURRENT_USER_ENDPOINT)
-    
+
     if test_response and "results" in test_response and "users" in test_response["results"]:
         st.session_state.authenticated = True
         user_data = list(test_response["results"]["users"].values())[0]
@@ -1223,6 +487,8 @@ def load_initial_data():
         load_timesheets()  # Loads for current user and date range
     with st.spinner("Loading clients..."):
         load_clients()  # Loads mock client data
+    with st.spinner("Loading deleted timesheets..."):
+        load_deleted_timesheets()  # Load deleted timesheets
 
 def load_timesheets():
     """Load timesheets from TSheets API for the current user and date range."""
@@ -1233,17 +499,17 @@ def load_timesheets():
     today = datetime.now().date()
     end_date = min(st.session_state.date_range[1], today)
     start_date = min(st.session_state.date_range[0], end_date)
-    
+
     start_date_str = start_date.strftime("%Y-%m-%d")
     end_date_str = end_date.strftime("%Y-%m-%d")
-    
+
     params = {
         "start_date": start_date_str,
         "end_date": end_date_str,
         "user_ids": st.session_state.current_user["id"],
         "supplemental_data": "yes"  # To get jobcode info, etc.
     }
-    
+
     response = make_api_request(TIMESHEETS_ENDPOINT, params=params)
     if response and "results" in response and "timesheets" in response["results"]:
         timesheets_dict = response["results"]["timesheets"]
@@ -1254,6 +520,33 @@ def load_timesheets():
         st.session_state.timesheets = []
         if not st.session_state.error_message:
             st.warning("Could not load timesheets or no timesheets found for the period.")
+
+def load_deleted_timesheets():
+    """Load deleted timesheets from TSheets API."""
+    if not st.session_state.current_user:
+        st.session_state.deleted_timesheets = []
+        return
+    
+    # Use the last 30 days as a default range for deleted timesheets
+    today = datetime.now().date()
+    start_date = today - timedelta(days=30)
+    
+    params = {
+        "start_date": start_date.strftime("%Y-%m-%d"),
+        "end_date": today.strftime("%Y-%m-%d"),
+        "user_ids": st.session_state.current_user["id"]
+    }
+    
+    response = make_api_request(f"{TIMESHEETS_ENDPOINT}_deleted", params=params)
+    if response and "results" in response and "timesheets_deleted" in response["results"]:
+        deleted_timesheets_dict = response["results"]["timesheets_deleted"]
+        deleted_timesheets_list = list(deleted_timesheets_dict.values())
+        deleted_timesheets_list.sort(key=lambda x: x.get("last_modified", "1900-01-01"), reverse=True)
+        st.session_state.deleted_timesheets = deleted_timesheets_list
+    else:
+        st.session_state.deleted_timesheets = []
+        if st.session_state.debug_mode and st.session_state.error_message:
+            st.warning(f"Could not load deleted timesheets: {st.session_state.error_message}")
 
 def load_clients():
     """Load clients (mock data as per original)."""
@@ -1314,7 +607,7 @@ def get_jobcode_name(jobcode_id):
     """Get jobcode name from jobcode ID using cached data."""
     if jobcode_id is None or pd.isna(jobcode_id): 
         return "N/A"
-    
+
     try:
         jobcode_id_str = str(int(jobcode_id))
         # Ensure jobcodes are loaded into session state if needed
@@ -1331,7 +624,7 @@ def get_user_name(user_id):
     """Get user full name from user ID using cached data."""
     if user_id is None or pd.isna(user_id): 
         return "N/A"
-    
+
     try:
         user_id_int = int(user_id)
         if not st.session_state.user_map: 
@@ -1367,6 +660,7 @@ def delete_timesheet(timesheet_id):
     if response is not None: 
         st.session_state.success_message = "Timesheet entry deleted successfully!"
         load_timesheets()
+        load_deleted_timesheets()  # Refresh deleted timesheets
         return True
     return False
 
@@ -1376,7 +670,7 @@ def get_timesheet_dataframe(timesheets_list_tuple):
     timesheets_list = list(timesheets_list_tuple)
     if not timesheets_list:
         return pd.DataFrame()
-    
+
     data = []
     for ts in timesheets_list:
         try:
@@ -1444,7 +738,7 @@ def calculate_employee_performance_metrics(df_tuple, standard_workday_hours=8.0,
     df_copy = df.copy()
     df_copy["date"] = pd.to_datetime(df_copy["date"])
     df_copy["duration_seconds"] = pd.to_numeric(df_copy["duration_seconds"], errors="coerce").fillna(0)
-    
+
     if "billable" not in df_copy.columns:
          df_copy["billable"] = df_copy["job_name"].astype(str).str.contains("Development|Consulting|Billable Project", case=False, na=False)
 
@@ -1502,7 +796,6 @@ def calculate_employee_performance_metrics(df_tuple, standard_workday_hours=8.0,
         "weekly_overtime_hours_decimal": f"{weekly_overtime_hours:.2f}",
         "job_code_distribution_percent": job_code_distribution_percent,
         "job_code_distribution_hours": job_code_distribution_hours,
-        "avg_entries_per_week": f"{avg_entries_per_week:.2f}",
         "avg_entries_per_day": f"{avg_entries_per_day:.2f}",
         "avg_entries_per_week": f"{avg_entries_per_week:.2f}",
         "utilization_rate_vs_logged": round(utilization_rate_vs_logged, 2),
@@ -1516,7 +809,7 @@ def get_timesheets_for_month_display(df_timesheets_tuple, year, month):
     df_timesheets = pd.DataFrame(list(df_timesheets_tuple), columns=get_timesheet_dataframe(tuple([])).columns if not get_timesheet_dataframe(tuple([])).empty else None)
     if df_timesheets.empty or "date" not in df_timesheets.columns:
         return {}
-    
+
     df_copy = df_timesheets.copy()
     df_copy["date"] = pd.to_datetime(df_copy["date"])
 
@@ -1560,7 +853,7 @@ def run_api_diagnostics():
         "issues_found": [],
         "recommendations": []
     }
-    
+
     # Test basic connectivity
     try:
         response = requests.get("https://rest.tsheets.com", timeout=5)
@@ -1573,7 +866,7 @@ def run_api_diagnostics():
         diagnostics["recommendations"].append("Check your internet connection")
         diagnostics["recommendations"].append("Verify that TSheets API is not down for maintenance")
         return diagnostics
-    
+
     # Test authentication
     if st.session_state.api_token:
         headers = {
@@ -1613,12 +906,12 @@ def run_api_diagnostics():
     else:
         diagnostics["issues_found"].append("No API token provided")
         diagnostics["recommendations"].append("Enter your API token to authenticate")
-    
+
     return diagnostics
 
 # --- Tab Display Functions ---
 def display_dashboard_tab(): 
-    st.markdown("<h2 class='section-header'>Dashboard</h2>", unsafe_allow_html=True)
+    st.header("Dashboard")
     df_timesheets = get_timesheet_dataframe(tuple(st.session_state.timesheets))
 
     if df_timesheets.empty:
@@ -1630,17 +923,18 @@ def display_dashboard_tab():
     avg_hours_entry = total_hours / total_entries if total_entries > 0 else 0
     num_active_jobs = df_timesheets["job_name"].nunique()
 
-    st.markdown("<h3 class='subsection-header'>Overview</h3>", unsafe_allow_html=True)
+    st.subheader("Overview")
     cols_overview = st.columns(4)
     cols_overview[0].metric("Total Hours Logged", f"{total_hours:.2f} hrs")
     cols_overview[1].metric("Total Timesheet Entries", f"{total_entries}")
     cols_overview[2].metric("Avg Hours per Entry", f"{avg_hours_entry:.2f} hrs")
     cols_overview[3].metric("Active Job Codes", f"{num_active_jobs}")
 
-    st.markdown("---</h3><h3 class='subsection-header'>Recent Activity & Trends</h3>", unsafe_allow_html=True)
+    st.markdown("---")
+    st.subheader("Recent Activity & Trends")
     row1_col1, row1_col2 = st.columns(2)
     with row1_col1:
-        st.markdown("<h4>Hours by Job Code (Top 5)</h4>", unsafe_allow_html=True)
+        st.markdown("#### Hours by Job Code (Top 5)")
         job_hours = df_timesheets.groupby("job_name")["duration_seconds"].sum().div(3600).nlargest(5)
         if not job_hours.empty:
             fig_job_hours = px.bar(job_hours, x=job_hours.index, y=job_hours.values, labels={"y":"Total Hours", "x":"Job Code"}, text_auto=True)
@@ -1650,7 +944,7 @@ def display_dashboard_tab():
             st.info("No job code data for chart.")
 
     with row1_col2:
-        st.markdown("<h4>Daily Hours Trend (Last 7 Displayed Days)</h4>", unsafe_allow_html=True)
+        st.markdown("#### Daily Hours Trend (Last 7 Displayed Days)")
         # Ensure date is datetime for Grouper
         df_timesheets_sorted = df_timesheets.copy()
         df_timesheets_sorted["date"] = pd.to_datetime(df_timesheets_sorted["date"])
@@ -1662,15 +956,15 @@ def display_dashboard_tab():
         else:
             st.info("No daily trend data for chart.")
 
-    st.markdown("<h4>Recent Timesheet Entries (Top 5)</h4>", unsafe_allow_html=True)
+    st.markdown("#### Recent Timesheet Entries (Top 5)")
     st.dataframe(df_timesheets[["date_str", "job_name", "duration_formatted", "notes"]].head(), use_container_width=True)
 
 def display_timesheets_tab():
-    st.markdown("<h2 class='section-header'>Manage Timesheets</h2>", unsafe_allow_html=True)
-    action = st.selectbox("Choose action:", ["View Timesheets", "Create New Timesheet", "Edit Timesheet", "Delete Timesheet"], key="ts_action")
+    st.header("Manage Timesheets")
+    action = st.selectbox("Choose action:", ["View Timesheets", "Create New Timesheet", "Edit Timesheet", "Delete Timesheet", "View Deleted Timesheets"], key="ts_action")
 
     if action == "View Timesheets":
-        st.markdown("<h3 class='subsection-header'>Your Timesheets</h3>", unsafe_allow_html=True)
+        st.subheader("Your Timesheets")
         if not st.session_state.timesheets:
             st.info("No timesheets found for the selected period. Try adjusting date range or refreshing.")
         else:
@@ -1681,7 +975,7 @@ def display_timesheets_tab():
                 st.info("No timesheets to display after processing.")
 
     elif action == "Create New Timesheet":
-        st.markdown("<h3 class='subsection-header'>Create New Timesheet Entry</h3>", unsafe_allow_html=True)
+        st.subheader("Create New Timesheet Entry")
         with st.form("create_ts_form", clear_on_submit=True):
             ts_date = st.date_input("Date", value=datetime.now().date(), key="create_ts_date")
             job_options = {v["name"]: k for k, v in st.session_state.jobcodes.items()} if st.session_state.jobcodes else {}
@@ -1741,9 +1035,9 @@ def display_timesheets_tab():
                     st.success("Timesheet creation initiated!") # Message set by create_timesheet on success
                 else:
                     st.error(f"Failed to create timesheet. {st.session_state.error_message or 'Unknown error.'}")
-    
+
     elif action == "Edit Timesheet":
-        st.markdown("<h3 class='subsection-header'>Edit Timesheet Entry</h3>", unsafe_allow_html=True)
+        st.subheader("Edit Timesheet Entry")
         df_display = get_timesheet_dataframe(tuple(st.session_state.timesheets))
         if df_display.empty:
             st.info("No timesheets to edit.")
@@ -1780,10 +1074,31 @@ def display_timesheets_tab():
                 edit_notes = st.text_area("Notes", value=original_ts.get("notes", ""), key=f"edit_ts_notes_{timesheet_id_to_edit}")
                 edit_billable = st.checkbox("Billable", value=original_ts.get("billable", False), key=f"edit_ts_billable_{timesheet_id_to_edit}")
                 
-                # Duration/Start/End editing (simplified - assumes manual type for edit simplicity here)
-                # A full implementation would handle regular vs manual type changes and respective fields.
-                original_duration_hours = original_ts.get("duration", 0) / 3600
-                edit_duration_hours = st.number_input("Duration (hours) - for manual type", value=original_duration_hours, min_value=0.0, step=0.25, key=f"edit_ts_duration_{timesheet_id_to_edit}")
+                # Determine if this is a regular or manual timesheet
+                ts_type = original_ts.get("type", "manual")
+                
+                if ts_type == "regular":
+                    # For regular timesheets, show start and end time fields
+                    start_time_str = original_ts.get("start", "")
+                    end_time_str = original_ts.get("end", "")
+                    
+                    try:
+                        start_dt = datetime.fromisoformat(start_time_str.replace("Z", "+00:00")) if start_time_str else None
+                        end_dt = datetime.fromisoformat(end_time_str.replace("Z", "+00:00")) if end_time_str else None
+                        
+                        start_time = start_dt.time() if start_dt else None
+                        end_time = end_dt.time() if end_dt else None
+                        
+                        edit_start_time = st.time_input("Start Time", value=start_time, key=f"edit_ts_start_{timesheet_id_to_edit}")
+                        edit_end_time = st.time_input("End Time", value=end_time, key=f"edit_ts_end_{timesheet_id_to_edit}")
+                    except (ValueError, TypeError):
+                        st.warning("Could not parse original start/end times. Please enter new values.")
+                        edit_start_time = st.time_input("Start Time", key=f"edit_ts_start_new_{timesheet_id_to_edit}")
+                        edit_end_time = st.time_input("End Time", key=f"edit_ts_end_new_{timesheet_id_to_edit}")
+                else:
+                    # For manual timesheets, show duration field
+                    original_duration_hours = original_ts.get("duration", 0) / 3600
+                    edit_duration_hours = st.number_input("Duration (hours)", value=original_duration_hours, min_value=0.0, step=0.25, key=f"edit_ts_duration_{timesheet_id_to_edit}")
                 
                 submitted_edit = st.form_submit_button("Update Timesheet")
                 if submitted_edit:
@@ -1791,19 +1106,31 @@ def display_timesheets_tab():
                         "date": edit_date.strftime("%Y-%m-%d"),
                         "jobcode_id": job_id_edit,
                         "notes": edit_notes,
-                        "billable": edit_billable,
-                        "type": "manual", # Simplification: forcing update as manual type
-                        "duration": int(edit_duration_hours * 3600)
-                        # Add start/end if type regular is maintained and edited
+                        "billable": edit_billable
                     }
+                    
+                    if ts_type == "regular":
+                        # Update start and end times for regular timesheets
+                        start_dt = datetime.combine(edit_date, edit_start_time)
+                        end_dt = datetime.combine(edit_date, edit_end_time)
+                        
+                        if end_dt <= start_dt:
+                            st.error("End time must be after start time.")
+                            return
+                            
+                        updated_data["start"] = start_dt.isoformat() + "Z"
+                        updated_data["end"] = end_dt.isoformat() + "Z"
+                    else:
+                        # Update duration for manual timesheets
+                        updated_data["duration"] = int(edit_duration_hours * 3600)
+                    
                     if update_timesheet(timesheet_id_to_edit, updated_data):
                         st.success("Timesheet updated!")
-                        # No st.experimental_rerun() here, success message will show, data reloads in update_timesheet
                     else:
                         st.error(f"Failed to update timesheet. {st.session_state.error_message or 'Unknown error.'}")
-    
+
     elif action == "Delete Timesheet":
-        st.markdown("<h3 class='subsection-header'>Delete Timesheet Entry</h3>", unsafe_allow_html=True)
+        st.subheader("Delete Timesheet Entry")
         df_display_del = get_timesheet_dataframe(tuple(st.session_state.timesheets))
         if df_display_del.empty:
             st.info("No timesheets to delete.")
@@ -1821,18 +1148,51 @@ def display_timesheets_tab():
             if st.button("Confirm Delete Timesheet", key=f"confirm_delete_ts_{timesheet_id_to_delete}"):
                 if delete_timesheet(timesheet_id_to_delete):
                     st.success("Timesheet deleted!")
-                    # No st.experimental_rerun() here, success message will show, data reloads in delete_timesheet
                 else:
                     st.error(f"Failed to delete timesheet. {st.session_state.error_message or 'Unknown error.'}")
+    
+    elif action == "View Deleted Timesheets":
+        st.subheader("Deleted Timesheets")
+        if not st.session_state.deleted_timesheets:
+            st.info("No deleted timesheets found for the last 30 days.")
+            if st.button("Refresh Deleted Timesheets"):
+                load_deleted_timesheets()
+                st.rerun()
+        else:
+            # Create a DataFrame for display
+            deleted_data = []
+            for ts in st.session_state.deleted_timesheets:
+                try:
+                    entry_date = datetime.strptime(ts["date"], "%Y-%m-%d").date() if isinstance(ts.get("date"), str) else ts.get("date")
+                    duration_seconds = int(ts.get("duration", 0))
+                    deleted_data.append({
+                        "id": ts["id"],
+                        "date": entry_date.strftime("%Y-%m-%d") if entry_date else "N/A",
+                        "user_name": get_user_name(ts["user_id"]),
+                        "job_name": get_jobcode_name(ts.get("jobcode_id")),
+                        "duration": format_duration(duration_seconds),
+                        "notes": ts.get("notes", ""),
+                        "deleted_on": ts.get("last_modified", "Unknown")
+                    })
+                except Exception as e:
+                    if st.session_state.debug_mode:
+                        st.warning(f"Error processing deleted timesheet: {e}")
+                    continue
+                    
+            if deleted_data:
+                df_deleted = pd.DataFrame(deleted_data)
+                st.dataframe(df_deleted, use_container_width=True)
+            else:
+                st.info("No deleted timesheets to display after processing.")
 
 def display_reports_tab():
-    st.markdown("<h2 class='section-header'>Reports & Analytics</h2>", unsafe_allow_html=True)
+    st.header("Reports & Analytics")
     df_reports = get_timesheet_dataframe(tuple(st.session_state.timesheets))
     if df_reports.empty:
         st.info("No data for reports. Please check date range or refresh.")
         return
 
-    st.markdown("<h3 class='subsection-header'>Timesheet Summary Report</h3>", unsafe_allow_html=True)
+    st.subheader("Timesheet Summary Report")
     report_type = st.selectbox("Group By", ["Job Code", "User", "Day", "Week"], key="report_group_by")
 
     if report_type == "Job Code":
@@ -1868,7 +1228,7 @@ def display_reports_tab():
 
 def display_performance_analytics_tab(df_timesheets):
     """Displays the employee performance analytics tab with KPIs and charts."""
-    st.markdown("<h2 class='section-header'>Employee Performance Analytics</h2>", unsafe_allow_html=True)
+    st.header("Employee Performance Analytics")
 
     if df_timesheets.empty:
         st.warning("No timesheet data available for the selected period to calculate performance metrics.")
@@ -1883,7 +1243,8 @@ def display_performance_analytics_tab(df_timesheets):
     # Convert DataFrame to tuple for caching
     metrics = calculate_employee_performance_metrics(tuple(map(tuple, df_timesheets.values)), standard_workday_hours=standard_workday, standard_workweek_hours=standard_workweek)
 
-    st.markdown("---</h3><h3 class='subsection-header'>Key Performance Indicators (KPIs)</h3>", unsafe_allow_html=True)
+    st.markdown("---")
+    st.subheader("Key Performance Indicators (KPIs)")
     cols_kpi1 = st.columns(3)
     cols_kpi1[0].metric("Total Hours Logged", metrics["total_hours_logged_decimal"] + " hrs", delta=metrics["total_hours_logged_formatted"])
     cols_kpi1[1].metric("Avg Daily Hours", metrics["avg_daily_hours_decimal"] + " hrs", help=f"{metrics['num_days_worked']} days worked")
@@ -1899,10 +1260,11 @@ def display_performance_analytics_tab(df_timesheets):
     cols_kpi3[1].metric("Weekly Overtime", metrics["weekly_overtime_hours_decimal"] + " hrs")
     cols_kpi3[2].metric("Utilization (vs Standard)", f"{metrics['utilization_rate_vs_standard']} %", help=f"Billable Hours / ({metrics['num_days_worked']} days * {standard_workday} hrs/day)")
 
-    st.markdown("---</h3><h3 class='subsection-header'>Work Distribution & Patterns</h3>", unsafe_allow_html=True)
+    st.markdown("---")
+    st.subheader("Work Distribution & Patterns")
     col_dist1, col_dist2 = st.columns([2,1]) 
     with col_dist1:
-        st.markdown("<h4>Hours per Job Code</h4>", unsafe_allow_html=True)
+        st.markdown("#### Hours per Job Code")
         if metrics["job_code_distribution_hours"]:
             job_df_data = ([{"Job Code": k, "Hours": v, "Percentage": metrics["job_code_distribution_percent"].get(k,0)} 
                            for k,v in metrics["job_code_distribution_hours"].items() if v > 0])
@@ -1920,7 +1282,7 @@ def display_performance_analytics_tab(df_timesheets):
     with col_dist2:
         st.metric("Avg. Entries per Day", metrics["avg_entries_per_day"])
         st.metric("Avg. Entries per Week", metrics["avg_entries_per_week"])
-        st.markdown("<h4>Billable vs. Non-Billable</h4>", unsafe_allow_html=True)
+        st.markdown("#### Billable vs. Non-Billable")
         billable_data = pd.DataFrame({
             "Category": ["Billable", "Non-Billable"],
             "Hours": [float(metrics["billable_hours_decimal"]), float(metrics["non_billable_hours_decimal"])]
@@ -1932,7 +1294,8 @@ def display_performance_analytics_tab(df_timesheets):
         else:
             st.info("No billable/non-billable data.")
 
-    st.markdown("---</h3><h3 class='subsection-header'>Trends Over Time (Last 12 Weeks)</h3>", unsafe_allow_html=True)
+    st.markdown("---")
+    st.subheader("Trends Over Time (Last 12 Weeks)")
     if not df_timesheets.empty and "week_number" in df_timesheets.columns and "year" in df_timesheets.columns:
         df_copy = df_timesheets.copy()
         df_copy["date"] = pd.to_datetime(df_copy["date"])
@@ -1957,10 +1320,10 @@ def display_performance_analytics_tab(df_timesheets):
 
 def display_timesheet_calendar_tab(df_timesheets):
     """Displays an interactive monthly calendar with timesheet entries."""
-    st.markdown("<h2 class='section-header'>Timesheet Calendar</h2>", unsafe_allow_html=True)
+    st.header("Timesheet Calendar")
 
     current_month_view = st.session_state.calendar_current_month_view
-    
+
     cal_col1, cal_col2, cal_col3 = st.columns([1,2,1])
     with cal_col1:
         if st.button("⬅️ Previous Month", key="cal_prev_month_btn", use_container_width=True):
@@ -1987,17 +1350,17 @@ def display_timesheet_calendar_tab(df_timesheets):
 
     month_calendar = calendar.monthcalendar(current_month_view.year, current_month_view.month)
     weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-    
+
     cols_weekdays = st.columns(7)
     for i, day_name in enumerate(weekdays):
-        cols_weekdays[i].markdown(f"<div class='calendar-weekday'>{day_name}</div>", unsafe_allow_html=True)
+        cols_weekdays[i].markdown(f"<div style='text-align:center; font-weight:bold;'>{day_name}</div>", unsafe_allow_html=True)
 
     for week in month_calendar:
         cols_days = st.columns(7)
         for i, day_num in enumerate(week):
             with cols_days[i]:
                 if day_num == 0:
-                    st.markdown("<div class='calendar-day other-month'></div>", unsafe_allow_html=True)
+                    st.markdown("<div style='height:80px;'></div>", unsafe_allow_html=True)
                 else:
                     current_day_date = date(current_month_view.year, current_month_view.month, day_num)
                     
@@ -2014,18 +1377,19 @@ def display_timesheet_calendar_tab(df_timesheets):
                         st.rerun() 
 
     if st.session_state.calendar_selected_day_entries is not None and st.session_state.calendar_selected_date_for_details:
-        st.markdown("---</h3><h3 class='subsection-header'>Entries for " + st.session_state.calendar_selected_date_for_details.strftime("%B %d, %Y") + "</h3>", unsafe_allow_html=True)
+        st.markdown("---")
+        st.subheader(f"Entries for {st.session_state.calendar_selected_date_for_details.strftime('%B %d, %Y')}")
         if not st.session_state.calendar_selected_day_entries:
             st.info("No entries for this day.")
         else:
             for entry in st.session_state.calendar_selected_day_entries:
                 with st.container():
                     st.markdown(f"""
-                    <div class='day-view-entry'>
-                        <div class='day-view-time'><strong>Time:</strong> {entry["time_range"]}</div>
-                        <div class='day-view-job'><strong>Job:</strong> {entry["job_name"]}</div>
-                        <div class='day-view-duration'><strong>Duration:</strong> {entry["duration_formatted"]}</div>
-                        <div class='day-view-notes'><em>Notes:</em> {entry["notes_preview"]}</div>
+                    <div style='background-color:#f8f9fa; border-left:4px solid #4CAF50; padding:15px; margin-bottom:15px; border-radius:0 5px 5px 0;'>
+                        <div><strong>Time:</strong> {entry["time_range"]}</div>
+                        <div><strong>Job:</strong> {entry["job_name"]}</div>
+                        <div><strong>Duration:</strong> {entry["duration_formatted"]}</div>
+                        <div><em>Notes:</em> {entry["notes_preview"]}</div>
                     </div>
                     """, unsafe_allow_html=True)
                     if st.button(f"View Full Timesheet #{entry['id']}", key=f"view_cal_entry_{entry['id']}", help="Navigate to Timesheets tab to view/edit this entry"):
@@ -2034,7 +1398,7 @@ def display_timesheet_calendar_tab(df_timesheets):
                         st.rerun()
 
 def display_clients_tab():
-    st.markdown("<h2 class='section-header'>Client Management (Mock)</h2>", unsafe_allow_html=True)
+    st.header("Client Management (Mock)")
     if not st.session_state.clients:
         st.info("No client data available.")
         load_clients() # Ensure mock clients are loaded if empty
@@ -2050,10 +1414,10 @@ def display_clients_tab():
             st.markdown(f"**Notes:** {client['notes']}")
 
 def display_settings_tab():
-    st.markdown("<h2 class='section-header'>Settings</h2>", unsafe_allow_html=True)
-    
+    st.header("Settings")
+
     # Mock Data Mode Toggle
-    st.markdown("<h3 class='subsection-header'>API Connection Mode</h3>", unsafe_allow_html=True)
+    st.subheader("API Connection Mode")
     mock_data_mode = st.checkbox("Use Mock Data (No API Connection Required)", 
                                 value=st.session_state.mock_data_mode,
                                 help="Enable this to use mock data instead of connecting to the TSheets API")
@@ -2085,9 +1449,9 @@ def display_settings_tab():
             if st.session_state.api_token:  # Only try to authenticate if there's a token
                 authenticate()
             st.rerun()
-    
+
     # API Connection Diagnostics Section
-    st.markdown("<h3 class='subsection-header'>API Connection Diagnostics</h3>", unsafe_allow_html=True)
+    st.subheader("API Connection Diagnostics")
     if st.button("Run API Connection Diagnostics", key="run_diagnostics_btn"):
         with st.spinner("Running API connection diagnostics..."):
             diagnostics_results = run_api_diagnostics()
@@ -2109,25 +1473,25 @@ def display_settings_tab():
             st.markdown("**Recommendations:**")
             for rec in diagnostics_results['recommendations']:
                 st.markdown(f"- {rec}")
-    
+
     # Debug Mode Toggle
-    st.markdown("<h3 class='subsection-header'>Debug Mode</h3>", unsafe_allow_html=True)
+    st.subheader("Debug Mode")
     debug_mode = st.checkbox("Enable Debug Mode", 
                             value=st.session_state.debug_mode,
                             help="Show detailed debug information for troubleshooting")
     if debug_mode != st.session_state.debug_mode:
         st.session_state.debug_mode = debug_mode
         st.rerun()
-    
+
     if st.session_state.debug_mode and st.session_state.debug_info:
-        st.markdown("<div class='debug-title'>Last API Request Debug Info:</div>", unsafe_allow_html=True)
+        st.markdown("**Last API Request Debug Info:**")
         st.json(st.session_state.debug_info)
         
-        st.markdown("<div class='debug-title'>Recent API Logs:</div>", unsafe_allow_html=True)
+        st.markdown("**Recent API Logs:**")
         st.dataframe(pd.DataFrame(st.session_state.api_logs[-10:]), use_container_width=True)
-    
+
     # API Token Section
-    st.markdown("<h3 class='subsection-header'>API Token</h3>", unsafe_allow_html=True)
+    st.subheader("API Token")
     st.text_input("Current API Token (hidden)", value="*" * len(st.session_state.api_token) if st.session_state.api_token else "Not Set", type="password", disabled=True)
     new_token = st.text_input("Enter New API Token (Optional)", type="password", key="new_api_token_input")
     if st.button("Update Token & Re-authenticate", key="update_token_btn"):
@@ -2147,7 +1511,7 @@ def display_settings_tab():
             st.warning("Please enter a new API token to update.")
 
     # Date Range Section
-    st.markdown("<h3 class='subsection-header'>Date Range for Data</h3>", unsafe_allow_html=True)
+    st.subheader("Date Range for Data")
     current_start_date, current_end_date = st.session_state.date_range
     new_date_range = st.date_input(
         "Select Date Range",
@@ -2165,9 +1529,9 @@ def display_settings_tab():
             calculate_employee_performance_metrics.clear()
             get_timesheets_for_month_display.clear()
             st.rerun()
-    
+
     # Cache Management Section
-    st.markdown("<h3 class='subsection-header'>Cache Management</h3>", unsafe_allow_html=True)
+    st.subheader("Cache Management")
     if st.button("Clear All App Caches", key="clear_all_caches_btn"):
         fetch_users_data.clear()
         fetch_jobcodes_data.clear()
@@ -2179,7 +1543,7 @@ def display_settings_tab():
 
 # --- Main Application Logic ---
 def main():
-    st.markdown("<h1 class='main-header'>TSheets CRM Manager Pro ⏱️</h1>", unsafe_allow_html=True)
+    st.title("TSheets CRM Manager Pro ⏱️")
 
     with st.sidebar:
         # Using a publicly accessible, generic logo URL for placeholder
@@ -2294,14 +1658,14 @@ def main():
 
     # Display messages (success/error/warning) centrally
     if st.session_state.success_message:
-        st.markdown(f"<div class='success-message'>{st.session_state.success_message}</div>", unsafe_allow_html=True)
+        st.success(st.session_state.success_message)
         st.session_state.success_message = None 
     if st.session_state.error_message:
         # Check if it's a warning-level message from retries
         if "Retrying" in st.session_state.error_message:
-            st.markdown(f"<div class='warning-message'>{st.session_state.error_message}</div>", unsafe_allow_html=True)
+            st.warning(st.session_state.error_message)
         else:
-            st.markdown(f"<div class='error-message'>{st.session_state.error_message}</div>", unsafe_allow_html=True)
+            st.error(st.session_state.error_message)
         # Do not clear error_message here, let it persist until next successful action or explicit clear
 
     if st.session_state.authenticated:
@@ -2354,9 +1718,9 @@ def main():
                     st.session_state.api_token = ""
     elif st.session_state.error_message and "Authentication failed" in st.session_state.error_message:
         pass # Error is already displayed above
-    
-    st.markdown("---</h3>")
-    st.markdown("<div class='footer'>TSheets CRM Manager Pro © 2024-2025 | Enhanced Features by Manus</div>", unsafe_allow_html=True)
+
+    st.markdown("---")
+    st.markdown("TSheets CRM Manager Pro © 2024-2025 | Enhanced Features by Manus")
 
 if __name__ == "__main__":
     main()
