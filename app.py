@@ -265,7 +265,7 @@ with st.sidebar:
         
         if selected_view != st.session_state.view_mode:
             st.session_state.view_mode = selected_view
-            st.experimental_rerun()
+            st.rerun()
         
         st.markdown("---")
         st.markdown('<div class="sidebar-header">🔍 Filters</div>', unsafe_allow_html=True)
