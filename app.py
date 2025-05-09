@@ -10,7 +10,7 @@ import base64
 
 # Page configuration
 st.set_page_config(
-    page_title="TSheets Manager Pro",
+    page_title="Videmi Services TSheets Manager Pro",
     page_icon="⏱️",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -221,7 +221,7 @@ def get_download_link(df, filename, text):
 
 # --- Sidebar: Authentication and Navigation ---
 with st.sidebar:
-    st.markdown('<div class="sidebar-header">⏱️ TSheets Manager Pro</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sidebar-header">⏱️ Videmi Services TSheets Manager Pro</div>', unsafe_allow_html=True)
     st.markdown("---")
    
     # Authentication Section
@@ -324,7 +324,7 @@ if not st.session_state.auth_token:
     with col1:
         st.markdown("""
         <div class="card">
-            <h2>Welcome to TSheets Manager Pro</h2>
+            <h2>Welcome to Videmi Services TSheets Manager Pro</h2>
             <p>This application allows you to manage your TSheets timesheets efficiently with advanced features:</p>
             <ul>
                 <li>View and analyze timesheet data with interactive dashboards</li>
