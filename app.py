@@ -318,7 +318,7 @@ with st.sidebar:
 
 # --- Main App Content ---
 if not st.session_state.auth_token:
-    st.markdown('<div class="main-header">⏱️ TSheets Manager Pro</div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-header">⏱️ Videmi Services TSheets Manager Pro</div>', unsafe_allow_html=True)
    
     col1, col2 = st.columns([2, 1])
     with col1:
