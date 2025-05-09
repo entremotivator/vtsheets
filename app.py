@@ -9,7 +9,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import io
 import base64
-import calendar # Ensure calendar is imported
+import calendar
 import re
 import altair as alt
 from PIL import Image
@@ -27,7 +27,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for better styling (from original)
+# Custom CSS for better styling
 st.markdown("""
 <style>
     /* General Styles */
@@ -327,7 +327,7 @@ st.markdown("""
         padding-left: 20px;
     }
     .activity-timeline:before {
-        content: ";
+        content: '';
         position: absolute;
         left: 0;
         top: 0;
@@ -341,7 +341,7 @@ st.markdown("""
         margin-bottom: 25px;
     }
     .activity-item:before {
-        content: ";
+        content: '';
         position: absolute;
         left: -10px;
         top: 0;
@@ -365,7 +365,7 @@ st.markdown("""
         box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
     }
     
-    /* Calendar Styles (from original, enhanced by new features) */
+    /* Calendar Styles */
     .calendar-container {
         background-color: white;
         border-radius: 10px;
@@ -423,13 +423,13 @@ st.markdown("""
         border-radius: 5px;
         cursor: pointer;
         transition: background-color 0.3s ease, transform 0.3s ease;
-        min-height: 80px; /* Increased min-height for better clickability and content */
+        min-height: 80px;
         display: flex;
         flex-direction: column;
-        justify-content: flex-start; /* Align day number to top */
+        justify-content: flex-start;
         align-items: center;
         position: relative;
-        border: 1px solid #eee; /* Add a light border to each day cell */
+        border: 1px solid #eee;
     }
     .calendar-day:hover {
         background-color: #e9ecef;
@@ -442,11 +442,11 @@ st.markdown("""
         border: 1px solid #155724;
     }
     .calendar-day.has-entries {
-        background-color: #d1ecf1; /* Light blue for days with entries */
+        background-color: #d1ecf1;
         color: #0c5460;
     }
     .calendar-day.has-entries.selected {
-        background-color: #4CAF50; /* Green when selected and has entries */
+        background-color: #4CAF50;
         color: white;
         border: 1px solid #3e8e41;
     }
@@ -458,11 +458,11 @@ st.markdown("""
     }
     .calendar-day.other-month {
         color: #aaa;
-        background-color: #fdfdfd; /* Slightly different for other month days */
+        background-color: #fdfdfd;
         cursor: default;
     }
     .day-number {
-        font-size: 0.9rem; /* Slightly smaller day number */
+        font-size: 0.9rem;
         margin-bottom: 3px;
         display: block;
         width: 100%;
@@ -473,15 +473,15 @@ st.markdown("""
         width: 6px;
         height: 6px;
         border-radius: 50%;
-        background-color: #3498DB; /* Blue dot for entries */
+        background-color: #3498DB;
         position: absolute;
-        top: 8px; /* Position dot near day number */
+        top: 8px;
         right: 8px;
     }
     .day-entry-summary {
         font-size: 0.75rem;
         color: #555;
-        margin-top: auto; /* Push summary to bottom if space allows */
+        margin-top: auto;
         padding-bottom: 5px;
     }
     .calendar-day.has-entries .day-entry-summary {
@@ -533,7 +533,7 @@ st.markdown("""
         margin-top: 5px;
     }
     
-    /* Heat Map Calendar (from original) */
+    /* Heat Map Calendar */
     .heatmap-container {
         background-color: white;
         border-radius: 10px;
@@ -563,7 +563,7 @@ st.markdown("""
         color: #555;
     }
     
-    /* Analytics Dashboard (from original) */
+    /* Analytics Dashboard */
     .analytics-card {
         background-color: white;
         border-radius: 10px;
@@ -581,7 +581,7 @@ st.markdown("""
         border-bottom: 1px solid #eee;
     }
     
-    /* Productivity Score (from original) */
+    /* Productivity Score */
     .productivity-score {
         text-align: center;
         padding: 20px;
@@ -597,7 +597,7 @@ st.markdown("""
         margin-top: 10px;
     }
     
-    /* Progress Bar (from original) */
+    /* Progress Bar */
     .progress-container {
         margin: 15px 0;
     }
@@ -618,7 +618,7 @@ st.markdown("""
         border-radius: 5px;
     }
     
-    /* Notification Badge (from original) */
+    /* Notification Badge */
     .notification-badge {
         display: inline-block;
         background-color: #dc3545;
@@ -632,7 +632,7 @@ st.markdown("""
         margin-left: 5px;
     }
     
-    /* Search Bar (from original) */
+    /* Search Bar */
     .search-container {
         position: relative;
         margin-bottom: 20px;
@@ -656,7 +656,7 @@ st.markdown("""
         outline: none;
     }
     
-    /* Footer (from original) */
+    /* Footer */
     .footer {
         text-align: center;
         padding: 20px;
@@ -682,7 +682,7 @@ st.markdown("""
         text-decoration: underline;
     }
     
-    /* Responsive Adjustments (from original) */
+    /* Responsive Adjustments */
     @media (max-width: 768px) {
         .client-stats {
             flex-direction: column;
@@ -692,7 +692,7 @@ st.markdown("""
         }
         .calendar-weekday, .calendar-day {
             padding: 5px;
-            font-size: 0.8rem; /* Adjusted for smaller screens */
+            font-size: 0.8rem;
             min-height: 60px;
         }
         .day-number {
@@ -705,7 +705,7 @@ st.markdown("""
             right: 5px;
         }
         .stTabs [data-baseweb="tab"] {
-            padding: 8px 10px; /* Adjust tab padding for smaller screens */
+            padding: 8px 10px;
             font-size: 0.85rem;
         }
         .main-header {
@@ -730,64 +730,113 @@ CURRENT_USER_ENDPOINT = f"{BASE_URL}/current_user"
 CLIENTS_ENDPOINT = f"{BASE_URL}/customfields"  # Using customfields for client data
 
 # Initialize session state variables
-if "authenticated" not in st.session_state:
-    st.session_state.authenticated = False
-if "api_token" not in st.session_state:
-    st.session_state.api_token = ""
-if "current_user" not in st.session_state:
-    st.session_state.current_user = None
-if "users" not in st.session_state: # Will be populated by cached function
-    st.session_state.users = {}
-if "jobcodes" not in st.session_state: # Will be populated by cached function
-    st.session_state.jobcodes = {}
-if "timesheets" not in st.session_state:
-    st.session_state.timesheets = []
-if "clients" not in st.session_state:
-    st.session_state.clients = [] # Mock data, no API call
-if "user_map" not in st.session_state: # Will be populated by cached function
-    st.session_state.user_map = {}
-if "last_refresh" not in st.session_state:
-    st.session_state.last_refresh = None
-if "active_tab" not in st.session_state:
-    st.session_state.active_tab = "Dashboard"
-if "date_range" not in st.session_state:
-    today = datetime.now().date()
-    st.session_state.date_range = (today - timedelta(days=30), today)
-if "error_message" not in st.session_state:
-    st.session_state.error_message = None
-if "success_message" not in st.session_state:
-    st.session_state.success_message = None
-if "debug_info" not in st.session_state:
-    st.session_state.debug_info = None
-if "selected_client" not in st.session_state:
-    st.session_state.selected_client = None
-if "client_search" not in st.session_state:
-    st.session_state.client_search = ""
-# New session state variables for Calendar Tab
-if "calendar_current_month_view" not in st.session_state:
-    st.session_state.calendar_current_month_view = datetime.now().date().replace(day=1)
-if "calendar_selected_day_entries" not in st.session_state:
-    st.session_state.calendar_selected_day_entries = None
-if "calendar_selected_date_for_details" not in st.session_state:
-    st.session_state.calendar_selected_date_for_details = None
-if "notifications" not in st.session_state:
-    st.session_state.notifications = [
-        {"id": 1, "message": "New client added: Acme Corporation", "date": "2023-05-08", "read": False},
-        {"id": 2, "message": "Timesheet approval pending", "date": "2023-05-07", "read": False},
-        {"id": 3, "message": "Weekly report generated", "date": "2023-05-06", "read": True}
-    ]
+def init_session_state():
+    """Initialize all session state variables with defaults"""
+    if "authenticated" not in st.session_state:
+        st.session_state.authenticated = False
+    if "api_token" not in st.session_state:
+        st.session_state.api_token = ""
+    if "current_user" not in st.session_state:
+        st.session_state.current_user = None
+    if "users" not in st.session_state:
+        st.session_state.users = {}
+    if "jobcodes" not in st.session_state:
+        st.session_state.jobcodes = {}
+    if "timesheets" not in st.session_state:
+        st.session_state.timesheets = []
+    if "clients" not in st.session_state:
+        st.session_state.clients = []
+    if "user_map" not in st.session_state:
+        st.session_state.user_map = {}
+    if "last_refresh" not in st.session_state:
+        st.session_state.last_refresh = None
+    if "active_tab" not in st.session_state:
+        st.session_state.active_tab = "Dashboard"
+    if "date_range" not in st.session_state:
+        today = datetime.now().date()
+        st.session_state.date_range = (today - timedelta(days=30), today)
+    if "error_message" not in st.session_state:
+        st.session_state.error_message = None
+    if "success_message" not in st.session_state:
+        st.session_state.success_message = None
+    if "debug_info" not in st.session_state:
+        st.session_state.debug_info = None
+    if "selected_client" not in st.session_state:
+        st.session_state.selected_client = None
+    if "client_search" not in st.session_state:
+        st.session_state.client_search = ""
+    # Calendar Tab variables
+    if "calendar_current_month_view" not in st.session_state:
+        st.session_state.calendar_current_month_view = datetime.now().date().replace(day=1)
+    if "calendar_selected_day_entries" not in st.session_state:
+        st.session_state.calendar_selected_day_entries = None
+    if "calendar_selected_date_for_details" not in st.session_state:
+        st.session_state.calendar_selected_date_for_details = None
+    if "notifications" not in st.session_state:
+        st.session_state.notifications = [
+            {"id": 1, "message": "New client added: Acme Corporation", "date": "2023-05-08", "read": False},
+            {"id": 2, "message": "Timesheet approval pending", "date": "2023-05-07", "read": False},
+            {"id": 3, "message": "Weekly report generated", "date": "2023-05-06", "read": True}
+        ]
+    if "api_request_count" not in st.session_state:
+        st.session_state.api_request_count = 0
+    if "last_api_status" not in st.session_state:
+        st.session_state.last_api_status = None
 
-# --- Enhanced API Request Function with Retries ---
+# Initialize session state
+init_session_state()
+
+# --- Enhanced API Request Function with Retries and Connection Diagnostics ---
 def make_api_request(endpoint, method="GET", params=None, data=None, timeout=30, max_retries=3, backoff_factor=0.5):
-    """Make an API request to TSheets with retries, enhanced error handling, and timeout."""
+    """
+    Make an API request to TSheets with retries, enhanced error handling, timeout, and connection diagnostics.
+    
+    Args:
+        endpoint (str): API endpoint URL
+        method (str): HTTP method (GET, POST, PUT, DELETE)
+        params (dict): URL parameters for the request
+        data (dict): JSON data for POST/PUT requests
+        timeout (int): Request timeout in seconds
+        max_retries (int): Maximum number of retry attempts
+        backoff_factor (float): Exponential backoff factor between retries
+        
+    Returns:
+        dict or None: JSON response data or None if request failed
+    """
     headers = {
         "Authorization": f"Bearer {st.session_state.api_token}",
         "Content-Type": "application/json"
     }
     
-    st.session_state.error_message = None # Clear previous error for this attempt
+    # Clear previous error for this attempt
+    st.session_state.error_message = None
+    
+    # Track API request count
+    st.session_state.api_request_count += 1
+    request_id = f"req_{st.session_state.api_request_count}"
+    
+    # Prepare debug info
+    debug_info = {
+        "request_id": request_id,
+        "endpoint": endpoint,
+        "method": method,
+        "params": params,
+        "data_summary": str(data)[:100] + "..." if data and len(str(data)) > 100 else data,
+        "attempts": [],
+        "final_status": None
+    }
 
     for attempt in range(max_retries):
+        attempt_start_time = time.time()
+        attempt_info = {
+            "attempt_number": attempt + 1,
+            "timestamp": datetime.now().isoformat(),
+            "status_code": None,
+            "response_summary": None,
+            "error": None,
+            "duration_ms": None
+        }
+        
         try:
             if method == "GET":
                 response = requests.get(endpoint, headers=headers, params=params, timeout=timeout)
@@ -799,28 +848,50 @@ def make_api_request(endpoint, method="GET", params=None, data=None, timeout=30,
                 response = requests.delete(endpoint, headers=headers, params=params, timeout=timeout)
             else:
                 st.session_state.error_message = f"Unsupported HTTP method: {method}"
-                # No st.error here, let the main loop handle display
+                attempt_info["error"] = st.session_state.error_message
+                debug_info["attempts"].append(attempt_info)
+                debug_info["final_status"] = "error"
+                st.session_state.debug_info = debug_info
+                st.session_state.last_api_status = "error"
                 return None
 
-            # Store debug info for GET timesheets (can be expanded)
-            if endpoint == TIMESHEETS_ENDPOINT and method == "GET":
-                st.session_state.debug_info = {
-                    "endpoint": endpoint,
-                    "params": params,
-                    "status_code": response.status_code,
-                    "response_text": response.text[:500] 
-                }
+            # Calculate request duration
+            attempt_duration = (time.time() - attempt_start_time) * 1000  # ms
+            attempt_info["duration_ms"] = round(attempt_duration, 2)
+            attempt_info["status_code"] = response.status_code
             
+            # Store response summary
+            try:
+                response_text = response.text[:500]
+                attempt_info["response_summary"] = response_text
+            except:
+                attempt_info["response_summary"] = "Could not extract response text"
+            
+            # Handle response based on status code
             if response.status_code == 200:
+                debug_info["attempts"].append(attempt_info)
+                debug_info["final_status"] = "success"
+                st.session_state.debug_info = debug_info
+                st.session_state.last_api_status = "success"
                 return response.json()
-            elif response.status_code == 204: # Successful request with no content to return
-                return {} # Return an empty dict (consistent for CRUD operations)
-            elif response.status_code in [429, 500, 502, 503, 504]: # Retryable errors
-                st.session_state.error_message = f"API Error: {response.status_code} - {response.text[:200]}. Retrying ({attempt + 1}/{max_retries})..."
-                # st.warning(st.session_state.error_message) # Can show warning during retries
-                time.sleep(backoff_factor * (2 ** attempt)) # Exponential backoff
-                continue # Go to next attempt
-            else: # Non-retryable client or server error
+            elif response.status_code == 204:  # Successful request with no content
+                debug_info["attempts"].append(attempt_info)
+                debug_info["final_status"] = "success"
+                st.session_state.debug_info = debug_info
+                st.session_state.last_api_status = "success"
+                return {}  # Return an empty dict
+            elif response.status_code in [429, 500, 502, 503, 504]:  # Retryable errors
+                error_message = f"API Error: {response.status_code} - {response.text[:200]}. Retrying ({attempt + 1}/{max_retries})..."
+                st.session_state.error_message = error_message
+                attempt_info["error"] = error_message
+                debug_info["attempts"].append(attempt_info)
+                
+                # Use exponential backoff
+                wait_time = backoff_factor * (2 ** attempt)
+                time.sleep(wait_time)
+                continue  # Go to next attempt
+            else:  # Non-retryable client or server error
+                # Try to extract detailed error message from response
                 error_details = response.text
                 try:
                     json_error = response.json()
@@ -830,46 +901,70 @@ def make_api_request(endpoint, method="GET", params=None, data=None, timeout=30,
                         elif "message" in json_error:
                             error_details = json_error["message"]
                 except ValueError:
-                    pass # Keep response.text if not JSON
-                st.session_state.error_message = f"API Error: {response.status_code} - {error_details}"
-                return None # Failed after non-retryable error
+                    pass  # Keep response.text if not JSON
+                
+                error_message = f"API Error: {response.status_code} - {error_details}"
+                st.session_state.error_message = error_message
+                attempt_info["error"] = error_message
+                debug_info["attempts"].append(attempt_info)
+                debug_info["final_status"] = "error"
+                st.session_state.debug_info = debug_info
+                st.session_state.last_api_status = "error"
+                return None  # Failed after non-retryable error
             
         except requests.exceptions.Timeout:
-            st.session_state.error_message = f"Request timed out after {timeout} seconds for {method} {endpoint}. Retrying ({attempt + 1}/{max_retries})..."
-            # st.warning(st.session_state.error_message)
+            error_message = f"Request timed out after {timeout} seconds for {method} {endpoint}. Retrying ({attempt + 1}/{max_retries})..."
+            st.session_state.error_message = error_message
+            attempt_info["error"] = error_message
+            debug_info["attempts"].append(attempt_info)
+            time.sleep(backoff_factor * (2 ** attempt))
+            continue
+        except requests.exceptions.ConnectionError:
+            error_message = f"Connection error for {method} {endpoint}. Check network or API endpoint. Retrying ({attempt + 1}/{max_retries})..."
+            st.session_state.error_message = error_message
+            attempt_info["error"] = error_message
+            debug_info["attempts"].append(attempt_info)
             time.sleep(backoff_factor * (2 ** attempt))
             continue
         except requests.exceptions.RequestException as e:
-            st.session_state.error_message = f"Request Error: {str(e)}. Retrying ({attempt + 1}/{max_retries})..."
-            # st.warning(st.session_state.error_message)
+            error_message = f"Request Error: {str(e)}. Retrying ({attempt + 1}/{max_retries})..."
+            st.session_state.error_message = error_message
+            attempt_info["error"] = error_message
+            debug_info["attempts"].append(attempt_info)
             time.sleep(backoff_factor * (2 ** attempt))
             continue
         except Exception as e:
-            st.session_state.error_message = f"An unexpected error occurred: {str(e)}. Retrying ({attempt + 1}/{max_retries})..."
-            # st.warning(st.session_state.error_message)
+            error_message = f"An unexpected error occurred: {str(e)}. Retrying ({attempt + 1}/{max_retries})..."
+            st.session_state.error_message = error_message
+            attempt_info["error"] = error_message
+            debug_info["attempts"].append(attempt_info)
             time.sleep(backoff_factor * (2 ** attempt))
             continue
     
     # If all retries fail
-    if not st.session_state.error_message: # If loop finished without setting a specific final error
+    if not st.session_state.error_message:  # If loop finished without setting a specific final error
         st.session_state.error_message = f"Failed to connect to API after {max_retries} retries."
+    
+    debug_info["final_status"] = "failed_all_retries"
+    st.session_state.debug_info = debug_info
+    st.session_state.last_api_status = "failed"
     return None
 
 # --- Helper Functions with Caching ---
-@st.cache_data(ttl=3600) # Cache for 1 hour
-def fetch_users_data(_api_token_dependency): # Add dummy arg to make it refresh if token changes
+@st.cache_data(ttl=3600)  # Cache for 1 hour
+def fetch_users_data(_api_token_dependency):
     """Cached function to load users from TSheets API."""
     response = make_api_request(USERS_ENDPOINT, params={"active": "yes"})
     if response and "results" in response and "users" in response["results"]:
         users = response["results"]["users"]
         user_map = {}
         for user_id, user_data in users.items():
-            full_name = f"{user_data.get("first_name", "")} {user_data.get("last_name", "").strip()}"
+            full_name = f"{user_data.get('first_name', '')} {user_data.get('last_name', '').strip()}"
             user_map[int(user_id)] = full_name if full_name else f"User {user_id}"
         return users, user_map
     return {}, {}
 
-@st.cache_data(ttl=3600) # Cache for 1 hour
+@st.cache_data(ttl=3600)  # Cache for 1 hour
 def fetch_jobcodes_data(_api_token_dependency):
     """Cached function to load jobcodes from TSheets API."""
     response = make_api_request(JOBCODES_ENDPOINT, params={"active": "yes"})
@@ -884,7 +979,7 @@ def load_users():
     st.session_state.user_map = user_map_data
     if not users_data and st.session_state.error_message:
         st.warning(f"Could not load users: {st.session_state.error_message}")
-        st.session_state.error_message = None # Clear after showing warning
+        st.session_state.error_message = None  # Clear after showing warning
 
 def load_jobcodes():
     """Load jobcodes using cached function and update session state."""
@@ -892,33 +987,39 @@ def load_jobcodes():
     st.session_state.jobcodes = jobcodes_data
     if not jobcodes_data and st.session_state.error_message:
         st.warning(f"Could not load job codes: {st.session_state.error_message}")
-        st.session_state.error_message = None # Clear after showing warning
+        st.session_state.error_message = None  # Clear after showing warning
 
 def authenticate():
-    """Authenticate with TSheets API"""
-    response = make_api_request(CURRENT_USER_ENDPOINT)
-    if response and "results" in response and "users" in response["results"]:
+    """Authenticate with TSheets API and handle connection issues"""
+    # First, test the connection with a simple request
+    test_response = make_api_request(CURRENT_USER_ENDPOINT)
+    
+    if test_response and "results" in test_response and "users" in test_response["results"]:
         st.session_state.authenticated = True
-        user_data = list(response["results"]["users"].values())[0]
+        user_data = list(test_response["results"]["users"].values())[0]
         st.session_state.current_user = user_data
         # Clear caches on new authentication to ensure fresh data for new token/user
         fetch_users_data.clear()
         fetch_jobcodes_data.clear()
-        load_initial_data() # Combined data loading
+        load_initial_data()  # Combined data loading
         st.session_state.last_refresh = datetime.now()
         return True
     else:
         st.session_state.authenticated = False
         if not st.session_state.error_message:
-             st.session_state.error_message = "Authentication failed. Please check your API token and connection."
+            st.session_state.error_message = "Authentication failed. Please check your API token and connection."
         return False
 
 def load_initial_data():
     """Load all necessary initial data after authentication."""
-    load_users()
-    load_jobcodes()
-    load_timesheets() # Loads for current user and date range
-    load_clients() # Loads mock client data
+    with st.spinner("Loading users..."):
+        load_users()
+    with st.spinner("Loading job codes..."):
+        load_jobcodes()
+    with st.spinner("Loading timesheets..."):
+        load_timesheets()  # Loads for current user and date range
+    with st.spinner("Loading clients..."):
+        load_clients()  # Loads mock client data
 
 def load_timesheets():
     """Load timesheets from TSheets API for the current user and date range."""
@@ -937,8 +1038,9 @@ def load_timesheets():
         "start_date": start_date_str,
         "end_date": end_date_str,
         "user_ids": st.session_state.current_user["id"],
-        "supplemental_data": "yes" # To get jobcode info, etc.
+        "supplemental_data": "yes"  # To get jobcode info, etc.
     }
+    
     response = make_api_request(TIMESHEETS_ENDPOINT, params=params)
     if response and "results" in response and "timesheets" in response["results"]:
         timesheets_dict = response["results"]["timesheets"]
@@ -948,10 +1050,8 @@ def load_timesheets():
     else:
         st.session_state.timesheets = []
         if not st.session_state.error_message:
-             st.warning("Could not load timesheets or no timesheets found for the period.")
-        # Error message is already set by make_api_request if it failed
+            st.warning("Could not load timesheets or no timesheets found for the period.")
 
-# @st.cache_data # Clients are mock, no need to cache API call
 def load_clients():
     """Load clients (mock data as per original)."""
     clients_data = [
@@ -1009,20 +1109,33 @@ def format_duration_hours(seconds):
 
 def get_jobcode_name(jobcode_id):
     """Get jobcode name from jobcode ID using cached data."""
-    if jobcode_id is None or pd.isna(jobcode_id): return "N/A"
-    jobcode_id_str = str(int(jobcode_id))
-    # Ensure jobcodes are loaded into session state if needed, or rely on initial load
-    if not st.session_state.jobcodes: load_jobcodes() # Defensive load if empty
-    if jobcode_id_str in st.session_state.jobcodes:
-        return st.session_state.jobcodes[jobcode_id_str].get("name", f"Job {jobcode_id_str}")
-    return f"Job {jobcode_id_str}"
+    if jobcode_id is None or pd.isna(jobcode_id): 
+        return "N/A"
+    
+    try:
+        jobcode_id_str = str(int(jobcode_id))
+        # Ensure jobcodes are loaded into session state if needed
+        if not st.session_state.jobcodes: 
+            load_jobcodes()  # Defensive load if empty
+        
+        if jobcode_id_str in st.session_state.jobcodes:
+            return st.session_state.jobcodes[jobcode_id_str].get("name", f"Job {jobcode_id_str}")
+        return f"Job {jobcode_id_str}"
+    except (ValueError, TypeError):
+        return f"Job {jobcode_id}"
 
 def get_user_name(user_id):
     """Get user full name from user ID using cached data."""
-    if user_id is None or pd.isna(user_id): return "N/A"
-    user_id_int = int(user_id)
-    if not st.session_state.user_map: load_users() # Defensive load if empty
-    return st.session_state.user_map.get(user_id_int, f"User {user_id_int}")
+    if user_id is None or pd.isna(user_id): 
+        return "N/A"
+    
+    try:
+        user_id_int = int(user_id)
+        if not st.session_state.user_map: 
+            load_users()  # Defensive load if empty
+        return st.session_state.user_map.get(user_id_int, f"User {user_id_int}")
+    except (ValueError, TypeError):
+        return f"User {user_id}"
 
 def create_timesheet(data):
     """Create a new timesheet entry"""
@@ -1030,7 +1143,7 @@ def create_timesheet(data):
     response = make_api_request(TIMESHEETS_ENDPOINT, method="POST", data=payload)
     if response: 
         st.session_state.success_message = "Timesheet entry created successfully!"
-        load_timesheets() # Refresh data
+        load_timesheets()  # Refresh data
         return True
     # Error message set by make_api_request and displayed in main loop
     return False
@@ -1054,8 +1167,8 @@ def delete_timesheet(timesheet_id):
         return True
     return False
 
-@st.cache_data(max_entries=10, ttl=600) # Cache DataFrame conversion for 10 mins
-def get_timesheet_dataframe(timesheets_list_tuple): # Use tuple for hashability
+@st.cache_data(max_entries=10, ttl=600)  # Cache DataFrame conversion for 10 mins
+def get_timesheet_dataframe(timesheets_list_tuple):
     """Convert timesheet data to a DataFrame for analysis and display. Cached."""
     timesheets_list = list(timesheets_list_tuple)
     if not timesheets_list:
@@ -1095,8 +1208,7 @@ def get_timesheet_dataframe(timesheets_list_tuple): # Use tuple for hashability
                 "on_the_clock": ts.get("on_the_clock", False)
             })
         except Exception as e:
-            # st.warning(f"Error processing timesheet entry ID {ts.get("id", "Unknown")}: {e}") # Avoid too many warnings
-            print(f"Error processing timesheet entry ID {ts.get("id", "Unknown")}: {e}")
+            print(f"Error processing timesheet entry ID {ts.get('id', 'Unknown')}: {e}")
             continue 
             
     df = pd.DataFrame(data)
@@ -1108,9 +1220,9 @@ def get_timesheet_dataframe(timesheets_list_tuple): # Use tuple for hashability
             df["year"] = df["date"].dt.isocalendar().year
     return df
 
-# --- NEW Performance Analytics Functions (from code_enhancements.py) ---
+# --- Performance Analytics Functions ---
 @st.cache_data(ttl=600)
-def calculate_employee_performance_metrics(df_tuple, standard_workday_hours: float = 8.0, standard_workweek_hours: float = 40.0) -> dict:
+def calculate_employee_performance_metrics(df_tuple, standard_workday_hours=8.0, standard_workweek_hours=40.0):
     """Calculates detailed employee performance metrics from the timesheet DataFrame. Cached."""
     df = pd.DataFrame(list(df_tuple), columns=get_timesheet_dataframe(tuple([])).columns if not get_timesheet_dataframe(tuple([])).empty else None)
     if df.empty or "duration_seconds" not in df.columns or "date" not in df.columns:
@@ -1191,106 +1303,9 @@ def calculate_employee_performance_metrics(df_tuple, standard_workday_hours: flo
         "utilization_rate_vs_standard": round(utilization_rate_vs_standard, 2),
     }
 
-def display_performance_analytics_tab(df_timesheets: pd.DataFrame):
-    """Displays the employee performance analytics tab with KPIs and charts."""
-    st.markdown("<h2 class=\'section-header\'>Employee Performance Analytics</h2>", unsafe_allow_html=True)
-
-    if df_timesheets.empty:
-        st.warning("No timesheet data available for the selected period to calculate performance metrics.")
-        return
-
-    col1, col2 = st.columns(2)
-    with col1:
-        standard_workday = st.number_input("Standard Workday Hours", min_value=1.0, max_value=24.0, value=8.0, step=0.5, key="perf_workday_hours")
-    with col2:
-        standard_workweek = st.number_input("Standard Workweek Hours", min_value=1.0, max_value=168.0, value=40.0, step=1.0, key="perf_workweek_hours")
-
-    # Convert DataFrame to tuple of tuples for caching `calculate_employee_performance_metrics`
-    # This is a common pattern for caching functions that take DataFrames.
-    # Ensure the order of columns is consistent if that matters for the function.
-    # Here, we assume the function can handle a list of dicts or similar structure if direct tuple conversion is tricky.
-    # For simplicity, if df_timesheets is already processed, we might not need deep conversion.
-    # However, to be safe with caching, making it a hashable type is good.
-    # One way: tuple(df_timesheets.itertuples(index=False, name=None))
-    # Or, if the function is robust: just pass df_timesheets and rely on Streamlit's hashing.
-    # Let's try passing the DataFrame directly and see if Streamlit handles it. If not, convert to tuple.
-    metrics = calculate_employee_performance_metrics(tuple(map(tuple, df_timesheets.values)), standard_workday_hours=standard_workday, standard_workweek_hours=standard_workweek)
-
-    st.markdown("---_</h3_><h3 class=\'subsection-header\'>Key Performance Indicators (KPIs)</h3>", unsafe_allow_html=True)
-    cols_kpi1 = st.columns(3)
-    cols_kpi1[0].metric("Total Hours Logged", metrics["total_hours_logged_decimal"] + " hrs", delta=metrics["total_hours_logged_formatted"])
-    cols_kpi1[1].metric("Avg Daily Hours", metrics["avg_daily_hours_decimal"] + " hrs", help=f"{metrics["num_days_worked"]} days worked")
-    cols_kpi1[2].metric("Avg Weekly Hours", metrics["avg_weekly_hours_decimal"] + " hrs", help=f"{metrics["num_weeks_worked"]} weeks worked")
-
-    cols_kpi2 = st.columns(3)
-    cols_kpi2[0].metric("Billable Hours", metrics["billable_hours_decimal"] + " hrs", delta=f"{metrics["billable_percentage"]} % of Total")
-    cols_kpi2[1].metric("Non-Billable Hours", metrics["non_billable_hours_decimal"] + " hrs")
-    cols_kpi2[2].metric("Utilization (vs Logged)", f"{metrics["utilization_rate_vs_logged"]} %", help="Billable Hours / Total Logged Hours")
-
-    cols_kpi3 = st.columns(3)
-    cols_kpi3[0].metric("Daily Overtime", metrics["daily_overtime_hours_decimal"] + " hrs")
-    cols_kpi3[1].metric("Weekly Overtime", metrics["weekly_overtime_hours_decimal"] + " hrs")
-    cols_kpi3[2].metric("Utilization (vs Standard)", f"{metrics["utilization_rate_vs_standard"]} %", help=f"Billable Hours / ({metrics["num_days_worked"]} days * {standard_workday} hrs/day)")
-
-    st.markdown("---_</h3_><h3 class=\'subsection-header\'>Work Distribution & Patterns</h3>", unsafe_allow_html=True)
-    col_dist1, col_dist2 = st.columns([2,1]) 
-    with col_dist1:
-        st.markdown("<h4>Hours per Job Code</h4>", unsafe_allow_html=True)
-        if metrics["job_code_distribution_hours"]:
-            job_df_data = ([{"Job Code": k, "Hours": v, "Percentage": metrics["job_code_distribution_percent"].get(k,0)} 
-                           for k,v in metrics["job_code_distribution_hours"].items() if v > 0])
-            if job_df_data:
-                job_df = pd.DataFrame(job_df_data).sort_values("Hours", ascending=False)
-                st.dataframe(job_df, height=min(300, len(job_df)*40 + 40), use_container_width=True)
-                fig_job_pie = px.pie(job_df, values="Hours", names="Job Code", title="Job Code Hours Distribution")
-                fig_job_pie.update_layout(legend_orientation="h")
-                st.plotly_chart(fig_job_pie, use_container_width=True)
-            else:
-                st.info("No job code data with hours to display.")
-        else:
-            st.info("No job code data to display.")
-
-    with col_dist2:
-        st.metric("Avg. Entries per Day", metrics["avg_entries_per_day"])
-        st.metric("Avg. Entries per Week", metrics["avg_entries_per_week"])
-        st.markdown("<h4>Billable vs. Non-Billable</h4>", unsafe_allow_html=True)
-        billable_data = pd.DataFrame({
-            "Category": ["Billable", "Non-Billable"],
-            "Hours": [float(metrics["billable_hours_decimal"]), float(metrics["non_billable_hours_decimal"])]
-        })
-        if billable_data["Hours"].sum() > 0:
-            fig_billable_bar = px.bar(billable_data, x="Category", y="Hours", color="Category", title="Billable vs. Non-Billable Hours", text_auto=True)
-            fig_billable_bar.update_layout(showlegend=False)
-            st.plotly_chart(fig_billable_bar, use_container_width=True)
-        else:
-            st.info("No billable/non-billable data.")
-
-    st.markdown("---_</h3_><h3 class=\'subsection-header\'>Trends Over Time (Last 12 Weeks)</h3>", unsafe_allow_html=True)
-    if not df_timesheets.empty and "week_number" in df_timesheets.columns and "year" in df_timesheets.columns:
-        df_copy = df_timesheets.copy()
-        df_copy["date"] = pd.to_datetime(df_copy["date"])
-        if "week_number" not in df_copy.columns:
-            df_copy["week_number"] = df_copy["date"].dt.isocalendar().week
-        if "year" not in df_copy.columns:
-            df_copy["year"] = df_copy["date"].dt.isocalendar().year
-            
-        weekly_summary = df_copy.groupby(["year", "week_number"])["duration_seconds"].sum().reset_index()
-        weekly_summary["hours"] = weekly_summary["duration_seconds"] / 3600
-        weekly_summary["week_label"] = weekly_summary["year"].astype(str) + "-W" + weekly_summary["week_number"].astype(str).str.zfill(2)
-        weekly_summary = weekly_summary.sort_values(by="week_label", ascending=True).tail(12)
-
-        if not weekly_summary.empty:
-            fig_weekly_trend = px.line(weekly_summary, x="week_label", y="hours", title="Weekly Hours Logged (Last 12 Weeks)", markers=True)
-            fig_weekly_trend.update_layout(xaxis_title="Week", yaxis_title="Total Hours")
-            st.plotly_chart(fig_weekly_trend, use_container_width=True)
-        else:
-            st.info("Not enough data for weekly trend chart.")
-    else:
-        st.info("Weekly trend data requires \'week_number\' and \'year\' in timesheet details.")
-
-# --- NEW Calendar View Functions (from code_enhancements.py) ---
+# --- Calendar View Functions ---
 @st.cache_data(ttl=600)
-def get_timesheets_for_month_display(df_timesheets_tuple, year: int, month: int) -> dict:
+def get_timesheets_for_month_display(df_timesheets_tuple, year, month):
     """Processes timesheets for a given month and groups them by day for calendar display. Cached."""
     df_timesheets = pd.DataFrame(list(df_timesheets_tuple), columns=get_timesheet_dataframe(tuple([])).columns if not get_timesheet_dataframe(tuple([])).empty else None)
     if df_timesheets.empty or "date" not in df_timesheets.columns:
@@ -1330,131 +1345,74 @@ def get_timesheets_for_month_display(df_timesheets_tuple, year: int, month: int)
         })
     return entries_by_day
 
-def display_timesheet_calendar_tab(df_timesheets: pd.DataFrame):
-    """Displays an interactive monthly calendar with timesheet entries."""
-    st.markdown("<h2 class=\'section-header\'>Timesheet Calendar</h2>", unsafe_allow_html=True)
-
-    current_month_view = st.session_state.calendar_current_month_view
+# --- API Connection Diagnostics ---
+def run_api_diagnostics():
+    """Run diagnostics on the API connection and return results"""
+    diagnostics = {
+        "connection_status": "Unknown",
+        "endpoints_tested": [],
+        "issues_found": [],
+        "recommendations": []
+    }
     
-    cal_col1, cal_col2, cal_col3 = st.columns([1,2,1])
-    with cal_col1:
-        if st.button("⬅️ Previous Month", key="cal_prev_month_btn", use_container_width=True):
-            st.session_state.calendar_current_month_view = (current_month_view - timedelta(days=1)).replace(day=1)
-            st.session_state.calendar_selected_day_entries = None
-            st.session_state.calendar_selected_date_for_details = None
-            st.experimental_rerun()
-    with cal_col2:
-        st.markdown(f"<h3 style=\'text-align: center; margin-top:10px; margin-bottom:10px;\'>{current_month_view.strftime("%B %Y")}</h3>", unsafe_allow_html=True)
-    with cal_col3:
-        if st.button("Next Month ➡️", key="cal_next_month_btn", use_container_width=True):
-            next_m = current_month_view.month + 1
-            next_y = current_month_view.year
-            if next_m > 12:
-                next_m = 1
-                next_y += 1
-            st.session_state.calendar_current_month_view = date(next_y, next_m, 1)
-            st.session_state.calendar_selected_day_entries = None
-            st.session_state.calendar_selected_date_for_details = None
-            st.experimental_rerun()
-
-    df_timesheets_tuple = tuple(map(tuple, df_timesheets.values)) if not df_timesheets.empty else tuple()
-    entries_this_month = get_timesheets_for_month_display(df_timesheets_tuple, current_month_view.year, current_month_view.month)
-
-    month_calendar = calendar.monthcalendar(current_month_view.year, current_month_view.month)
-    weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    # Test basic connectivity
+    try:
+        response = requests.get("https://rest.tsheets.com", timeout=5)
+        diagnostics["connection_status"] = "Connected to TSheets API server"
+        diagnostics["endpoints_tested"].append({"endpoint": "https://rest.tsheets.com", "status": "Success"})
+    except requests.exceptions.RequestException as e:
+        diagnostics["connection_status"] = "Failed to connect to TSheets API server"
+        diagnostics["endpoints_tested"].append({"endpoint": "https://rest.tsheets.com", "status": "Failed", "error": str(e)})
+        diagnostics["issues_found"].append("Cannot reach TSheets API server")
+        diagnostics["recommendations"].append("Check your internet connection")
+        diagnostics["recommendations"].append("Verify that TSheets API is not down for maintenance")
+        return diagnostics
     
-    cols_weekdays = st.columns(7)
-    for i, day_name in enumerate(weekdays):
-        cols_weekdays[i].markdown(f"<div class=\'calendar-weekday\'>{day_name}</div>", unsafe_allow_html=True)
-
-    for week in month_calendar:
-        cols_days = st.columns(7)
-        for i, day_num in enumerate(week):
-            with cols_days[i]:
-                if day_num == 0:
-                    st.markdown("<div class=\'calendar-day other-month\'></div>", unsafe_allow_html=True)
+    # Test authentication
+    if st.session_state.api_token:
+        headers = {
+            "Authorization": f"Bearer {st.session_state.api_token}",
+            "Content-Type": "application/json"
+        }
+        
+        try:
+            response = requests.get(CURRENT_USER_ENDPOINT, headers=headers, timeout=10)
+            if response.status_code == 200:
+                diagnostics["endpoints_tested"].append({"endpoint": CURRENT_USER_ENDPOINT, "status": "Success"})
+            else:
+                diagnostics["endpoints_tested"].append({
+                    "endpoint": CURRENT_USER_ENDPOINT, 
+                    "status": "Failed", 
+                    "status_code": response.status_code,
+                    "response": response.text[:200]
+                })
+                diagnostics["issues_found"].append(f"Authentication failed with status code {response.status_code}")
+                
+                if response.status_code == 401:
+                    diagnostics["recommendations"].append("Your API token appears to be invalid or expired")
+                    diagnostics["recommendations"].append("Generate a new API token from your TSheets account")
+                elif response.status_code == 403:
+                    diagnostics["recommendations"].append("Your API token doesn't have sufficient permissions")
+                    diagnostics["recommendations"].append("Check the permissions associated with your API token")
                 else:
-                    current_day_date = date(current_month_view.year, current_month_view.month, day_num)
-                    day_class = "calendar-day"
-                    day_html_content = f"<span class=\'day-number\'>{day_num}</span>"
-                    
-                    if current_day_date == datetime.now().date(): day_class += " today"
-                    if st.session_state.calendar_selected_date_for_details == current_day_date: day_class += " selected"
-                    
-                    total_hours_today = 0
-                    entry_count = 0
-                    if day_num in entries_this_month and entries_this_month[day_num]:
-                        day_class += " has-entries"
-                        day_html_content += "<span class=\'day-entry-indicator\'></span>"
-                        entry_count = len(entries_this_month[day_num])
-                        total_hours_today = sum(e.get("duration_hours_decimal", 0) for e in entries_this_month[day_num])
-                        day_html_content += f"<span class=\'day-entry-summary\'>{entry_count} entr{ "y" if entry_count == 1 else "ies"}<br>{total_hours_today:.2f}h</span>"
-                    
-                    button_key = f"day_btn_{current_month_view.year}_{current_month_view.month}_{day_num}"
-                    # Using st.markdown to create a clickable div as st.button styling is limited
-                    # This is a more complex way but allows for full CSS control.
-                    # However, Streamlit doesn\'t directly support JS onclick in markdown to trigger Python callbacks easily.
-                    # A simpler approach is to use st.container() and then put a button inside it, or just use st.button and accept its limitations.
-                    # Let\'s use a placeholder for the complex HTML button and then use a simple st.button for interaction.
-                    # The provided CSS will style the div if we use markdown, but the click needs st.button.
-                    
-                    # We will use a simpler st.button and style it as best as possible with CSS for stButton
-                    # The class application will be via a wrapper div if needed, but st.button itself is hard to style dynamically with many classes.
-                    
-                    # Create a container for each day to apply custom class for background
-                    # This is a workaround to apply dynamic styling based on day state
-                    container_html = f"<div class=\'{day_class}\'>"
-                    container_html += f"  <span class=\'day-number\'>{day_num}</span>"
-                    if day_num in entries_this_month and entries_this_month[day_num]:
-                        container_html += "  <span class=\'day-entry-indicator\'></span>"
-                        entry_count = len(entries_this_month[day_num])
-                        total_hours_today = sum(e.get("duration_hours_decimal", 0) for e in entries_this_month[day_num])
-                        container_html += f"  <span class=\'day-entry-summary\'>{entry_count} entr{ "y" if entry_count == 1 else "ies"}<br>{total_hours_today:.2f}h</span>"
-                    container_html += "</div>"
-                    
-                    # Display the styled container as markdown (not clickable)
-                    # st.markdown(container_html, unsafe_allow_html=True)
-                    # Add an invisible button over it or a small visible button for interaction
-                    # This is still not ideal. The best is a custom component.
+                    diagnostics["recommendations"].append("Check the API documentation for error code details")
+        except requests.exceptions.RequestException as e:
+            diagnostics["endpoints_tested"].append({
+                "endpoint": CURRENT_USER_ENDPOINT, 
+                "status": "Failed", 
+                "error": str(e)
+            })
+            diagnostics["issues_found"].append(f"Error during authentication request: {str(e)}")
+            diagnostics["recommendations"].append("Check your network connection and try again")
+    else:
+        diagnostics["issues_found"].append("No API token provided")
+        diagnostics["recommendations"].append("Enter your API token to authenticate")
+    
+    return diagnostics
 
-                    # Simpler: Use st.button and rely on its state for selection visual cue, plus limited CSS.
-                    # The CSS above has .calendar-day, .has-entries, .selected. These won\'t directly apply to st.button.
-                    # The button label will be the day number. Help text can show details.
-                    button_label = f"{day_num}"
-                    if day_num in entries_this_month and entries_this_month[day_num]:
-                        entry_count = len(entries_this_month[day_num])
-                        total_hours_today = sum(e.get("duration_hours_decimal", 0) for e in entries_this_month[day_num])
-                        button_label += f"\n{entry_count} entr{'y' if entry_count == 1 else 'ies'}\n{total_hours_today:.2f}h"
-
-                    if st.button(label=button_label, key=button_key, help=f"View entries for {current_day_date.strftime("%b %d")}", use_container_width=True):
-                        st.session_state.calendar_selected_date_for_details = current_day_date
-                        st.session_state.calendar_selected_day_entries = entries_this_month.get(day_num, [])
-                        st.rerun() 
-
-    if st.session_state.calendar_selected_day_entries is not None and st.session_state.calendar_selected_date_for_details:
-        st.markdown("---_</h3_><h3 class=\'subsection-header\'>Entries for " + st.session_state.calendar_selected_date_for_details.strftime("%B %d, %Y") + "</h3>", unsafe_allow_html=True)
-        if not st.session_state.calendar_selected_day_entries:
-            st.info("No entries for this day.")
-        else:
-            for entry in st.session_state.calendar_selected_day_entries:
-                with st.container():
-                    st.markdown(f"""
-                    <div class=\'day-view-entry\'>
-                        <div class=\'day-view-time\'><strong>Time:</strong> {entry["time_range"]}</div>
-                        <div class=\'day-view-job\'><strong>Job:</strong> {entry["job_name"]}</div>
-                        <div class=\'day-view-duration\'><strong>Duration:</strong> {entry["duration_formatted"]}</div>
-                        <div class=\'day-view-notes\'><em>Notes:</em> {entry["notes_preview"]}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    if st.button(f"View Full Timesheet ##{entry["id"]}", key=f"view_cal_entry_{entry["id"]}", help="Navigate to Timesheets tab to view/edit this entry"):
-                        st.session_state.active_tab = "⏰ Timesheets" # Switch tab
-                        # How to pre-select or filter in timesheets tab is an advanced feature not yet built
-                        st.info(f"Navigating to Timesheets. Full details for ID {entry["id"]} can be searched or managed there.")
-                        st.experimental_rerun()
-
-# --- Original Tab Display Functions (ensure they exist and are compatible) ---
+# --- Tab Display Functions ---
 def display_dashboard_tab(): 
-    st.markdown("<h2 class=\'section-header\'>Dashboard</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 class='section-header'>Dashboard</h2>", unsafe_allow_html=True)
     df_timesheets = get_timesheet_dataframe(tuple(st.session_state.timesheets))
 
     if df_timesheets.empty:
@@ -1466,14 +1424,14 @@ def display_dashboard_tab():
     avg_hours_entry = total_hours / total_entries if total_entries > 0 else 0
     num_active_jobs = df_timesheets["job_name"].nunique()
 
-    st.markdown("<h3 class=\'subsection-header\'>Overview</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 class='subsection-header'>Overview</h3>", unsafe_allow_html=True)
     cols_overview = st.columns(4)
     cols_overview[0].metric("Total Hours Logged", f"{total_hours:.2f} hrs")
     cols_overview[1].metric("Total Timesheet Entries", f"{total_entries}")
     cols_overview[2].metric("Avg Hours per Entry", f"{avg_hours_entry:.2f} hrs")
     cols_overview[3].metric("Active Job Codes", f"{num_active_jobs}")
 
-    st.markdown("---_</h3_><h3 class=\'subsection-header\'>Recent Activity & Trends</h3>", unsafe_allow_html=True)
+    st.markdown("---</h3><h3 class='subsection-header'>Recent Activity & Trends</h3>", unsafe_allow_html=True)
     row1_col1, row1_col2 = st.columns(2)
     with row1_col1:
         st.markdown("<h4>Hours by Job Code (Top 5)</h4>", unsafe_allow_html=True)
@@ -1502,11 +1460,11 @@ def display_dashboard_tab():
     st.dataframe(df_timesheets[["date_str", "job_name", "duration_formatted", "notes"]].head(), use_container_width=True)
 
 def display_timesheets_tab():
-    st.markdown("<h2 class=\'section-header\'>Manage Timesheets</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 class='section-header'>Manage Timesheets</h2>", unsafe_allow_html=True)
     action = st.selectbox("Choose action:", ["View Timesheets", "Create New Timesheet", "Edit Timesheet", "Delete Timesheet"], key="ts_action")
 
     if action == "View Timesheets":
-        st.markdown("<h3 class=\'subsection-header\'>Your Timesheets</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 class='subsection-header'>Your Timesheets</h3>", unsafe_allow_html=True)
         if not st.session_state.timesheets:
             st.info("No timesheets found for the selected period. Try adjusting date range or refreshing.")
         else:
@@ -1517,7 +1475,7 @@ def display_timesheets_tab():
                 st.info("No timesheets to display after processing.")
 
     elif action == "Create New Timesheet":
-        st.markdown("<h3 class=\'subsection-header\'>Create New Timesheet Entry</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 class='subsection-header'>Create New Timesheet Entry</h3>", unsafe_allow_html=True)
         with st.form("create_ts_form", clear_on_submit=True):
             ts_date = st.date_input("Date", value=datetime.now().date(), key="create_ts_date")
             job_options = {v["name"]: k for k, v in st.session_state.jobcodes.items()} if st.session_state.jobcodes else {}
@@ -1579,7 +1537,7 @@ def display_timesheets_tab():
                     st.error(f"Failed to create timesheet. {st.session_state.error_message or 'Unknown error.'}")
     
     elif action == "Edit Timesheet":
-        st.markdown("<h3 class=\'subsection-header\'>Edit Timesheet Entry</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 class='subsection-header'>Edit Timesheet Entry</h3>", unsafe_allow_html=True)
         df_display = get_timesheet_dataframe(tuple(st.session_state.timesheets))
         if df_display.empty:
             st.info("No timesheets to edit.")
@@ -1639,7 +1597,7 @@ def display_timesheets_tab():
                         st.error(f"Failed to update timesheet. {st.session_state.error_message or 'Unknown error.'}")
     
     elif action == "Delete Timesheet":
-        st.markdown("<h3 class=\'subsection-header\'>Delete Timesheet Entry</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 class='subsection-header'>Delete Timesheet Entry</h3>", unsafe_allow_html=True)
         df_display_del = get_timesheet_dataframe(tuple(st.session_state.timesheets))
         if df_display_del.empty:
             st.info("No timesheets to delete.")
@@ -1659,16 +1617,16 @@ def display_timesheets_tab():
                     st.success("Timesheet deleted!")
                     # No st.experimental_rerun() here, success message will show, data reloads in delete_timesheet
                 else:
-                    file_name = f"timesheet_summary_by_{report_type.lower().replace(' ', '_')}.csv"
+                    st.error(f"Failed to delete timesheet. {st.session_state.error_message or 'Unknown error.'}")
 
 def display_reports_tab():
-    st.markdown("<h2 class=\'section-header\'>Reports & Analytics</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 class='section-header'>Reports & Analytics</h2>", unsafe_allow_html=True)
     df_reports = get_timesheet_dataframe(tuple(st.session_state.timesheets))
     if df_reports.empty:
         st.info("No data for reports. Please check date range or refresh.")
         return
 
-    st.markdown("<h3 class=\'subsection-header\'>Timesheet Summary Report</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 class='subsection-header'>Timesheet Summary Report</h3>", unsafe_allow_html=True)
     report_type = st.selectbox("Group By", ["Job Code", "User", "Day", "Week"], key="report_group_by")
 
     if report_type == "Job Code":
@@ -1695,15 +1653,182 @@ def display_reports_tab():
         st.download_button(
             label=f"Download {report_type} Summary as CSV",
             data=csv,
-            file_name = f"timesheet_summary_by_{report_type.lower().replace(' ', '_')}.csv",
+            file_name=f"timesheet_summary_by_{report_type.lower().replace(' ', '_')}.csv",
             mime="text/csv",
             key=f"download_{report_type}_csv"
         )
     else:
         st.info("No data to display for this grouping.")
 
+def display_performance_analytics_tab(df_timesheets):
+    """Displays the employee performance analytics tab with KPIs and charts."""
+    st.markdown("<h2 class='section-header'>Employee Performance Analytics</h2>", unsafe_allow_html=True)
+
+    if df_timesheets.empty:
+        st.warning("No timesheet data available for the selected period to calculate performance metrics.")
+        return
+
+    col1, col2 = st.columns(2)
+    with col1:
+        standard_workday = st.number_input("Standard Workday Hours", min_value=1.0, max_value=24.0, value=8.0, step=0.5, key="perf_workday_hours")
+    with col2:
+        standard_workweek = st.number_input("Standard Workweek Hours", min_value=1.0, max_value=168.0, value=40.0, step=1.0, key="perf_workweek_hours")
+
+    # Convert DataFrame to tuple for caching
+    metrics = calculate_employee_performance_metrics(tuple(map(tuple, df_timesheets.values)), standard_workday_hours=standard_workday, standard_workweek_hours=standard_workweek)
+
+    st.markdown("---</h3><h3 class='subsection-header'>Key Performance Indicators (KPIs)</h3>", unsafe_allow_html=True)
+    cols_kpi1 = st.columns(3)
+    cols_kpi1[0].metric("Total Hours Logged", metrics["total_hours_logged_decimal"] + " hrs", delta=metrics["total_hours_logged_formatted"])
+    cols_kpi1[1].metric("Avg Daily Hours", metrics["avg_daily_hours_decimal"] + " hrs", help=f"{metrics['num_days_worked']} days worked")
+    cols_kpi1[2].metric("Avg Weekly Hours", metrics["avg_weekly_hours_decimal"] + " hrs", help=f"{metrics['num_weeks_worked']} weeks worked")
+
+    cols_kpi2 = st.columns(3)
+    cols_kpi2[0].metric("Billable Hours", metrics["billable_hours_decimal"] + " hrs", delta=f"{metrics['billable_percentage']} % of Total")
+    cols_kpi2[1].metric("Non-Billable Hours", metrics["non_billable_hours_decimal"] + " hrs")
+    cols_kpi2[2].metric("Utilization (vs Logged)", f"{metrics['utilization_rate_vs_logged']} %", help="Billable Hours / Total Logged Hours")
+
+    cols_kpi3 = st.columns(3)
+    cols_kpi3[0].metric("Daily Overtime", metrics["daily_overtime_hours_decimal"] + " hrs")
+    cols_kpi3[1].metric("Weekly Overtime", metrics["weekly_overtime_hours_decimal"] + " hrs")
+    cols_kpi3[2].metric("Utilization (vs Standard)", f"{metrics['utilization_rate_vs_standard']} %", help=f"Billable Hours / ({metrics['num_days_worked']} days * {standard_workday} hrs/day)")
+
+    st.markdown("---</h3><h3 class='subsection-header'>Work Distribution & Patterns</h3>", unsafe_allow_html=True)
+    col_dist1, col_dist2 = st.columns([2,1]) 
+    with col_dist1:
+        st.markdown("<h4>Hours per Job Code</h4>", unsafe_allow_html=True)
+        if metrics["job_code_distribution_hours"]:
+            job_df_data = ([{"Job Code": k, "Hours": v, "Percentage": metrics["job_code_distribution_percent"].get(k,0)} 
+                           for k,v in metrics["job_code_distribution_hours"].items() if v > 0])
+            if job_df_data:
+                job_df = pd.DataFrame(job_df_data).sort_values("Hours", ascending=False)
+                st.dataframe(job_df, height=min(300, len(job_df)*40 + 40), use_container_width=True)
+                fig_job_pie = px.pie(job_df, values="Hours", names="Job Code", title="Job Code Hours Distribution")
+                fig_job_pie.update_layout(legend_orientation="h")
+                st.plotly_chart(fig_job_pie, use_container_width=True)
+            else:
+                st.info("No job code data with hours to display.")
+        else:
+            st.info("No job code data to display.")
+
+    with col_dist2:
+        st.metric("Avg. Entries per Day", metrics["avg_entries_per_day"])
+        st.metric("Avg. Entries per Week", metrics["avg_entries_per_week"])
+        st.markdown("<h4>Billable vs. Non-Billable</h4>", unsafe_allow_html=True)
+        billable_data = pd.DataFrame({
+            "Category": ["Billable", "Non-Billable"],
+            "Hours": [float(metrics["billable_hours_decimal"]), float(metrics["non_billable_hours_decimal"])]
+        })
+        if billable_data["Hours"].sum() > 0:
+            fig_billable_bar = px.bar(billable_data, x="Category", y="Hours", color="Category", title="Billable vs. Non-Billable Hours", text_auto=True)
+            fig_billable_bar.update_layout(showlegend=False)
+            st.plotly_chart(fig_billable_bar, use_container_width=True)
+        else:
+            st.info("No billable/non-billable data.")
+
+    st.markdown("---</h3><h3 class='subsection-header'>Trends Over Time (Last 12 Weeks)</h3>", unsafe_allow_html=True)
+    if not df_timesheets.empty and "week_number" in df_timesheets.columns and "year" in df_timesheets.columns:
+        df_copy = df_timesheets.copy()
+        df_copy["date"] = pd.to_datetime(df_copy["date"])
+        if "week_number" not in df_copy.columns:
+            df_copy["week_number"] = df_copy["date"].dt.isocalendar().week
+        if "year" not in df_copy.columns:
+            df_copy["year"] = df_copy["date"].dt.isocalendar().year
+            
+        weekly_summary = df_copy.groupby(["year", "week_number"])["duration_seconds"].sum().reset_index()
+        weekly_summary["hours"] = weekly_summary["duration_seconds"] / 3600
+        weekly_summary["week_label"] = weekly_summary["year"].astype(str) + "-W" + weekly_summary["week_number"].astype(str).str.zfill(2)
+        weekly_summary = weekly_summary.sort_values(by="week_label", ascending=True).tail(12)
+
+        if not weekly_summary.empty:
+            fig_weekly_trend = px.line(weekly_summary, x="week_label", y="hours", title="Weekly Hours Logged (Last 12 Weeks)", markers=True)
+            fig_weekly_trend.update_layout(xaxis_title="Week", yaxis_title="Total Hours")
+            st.plotly_chart(fig_weekly_trend, use_container_width=True)
+        else:
+            st.info("Not enough data for weekly trend chart.")
+    else:
+        st.info("Weekly trend data requires 'week_number' and 'year' in timesheet details.")
+
+def display_timesheet_calendar_tab(df_timesheets):
+    """Displays an interactive monthly calendar with timesheet entries."""
+    st.markdown("<h2 class='section-header'>Timesheet Calendar</h2>", unsafe_allow_html=True)
+
+    current_month_view = st.session_state.calendar_current_month_view
+    
+    cal_col1, cal_col2, cal_col3 = st.columns([1,2,1])
+    with cal_col1:
+        if st.button("⬅️ Previous Month", key="cal_prev_month_btn", use_container_width=True):
+            st.session_state.calendar_current_month_view = (current_month_view - timedelta(days=1)).replace(day=1)
+            st.session_state.calendar_selected_day_entries = None
+            st.session_state.calendar_selected_date_for_details = None
+            st.rerun()
+    with cal_col2:
+        st.markdown(f"<h3 style='text-align: center; margin-top:10px; margin-bottom:10px;'>{current_month_view.strftime('%B %Y')}</h3>", unsafe_allow_html=True)
+    with cal_col3:
+        if st.button("Next Month ➡️", key="cal_next_month_btn", use_container_width=True):
+            next_m = current_month_view.month + 1
+            next_y = current_month_view.year
+            if next_m > 12:
+                next_m = 1
+                next_y += 1
+            st.session_state.calendar_current_month_view = date(next_y, next_m, 1)
+            st.session_state.calendar_selected_day_entries = None
+            st.session_state.calendar_selected_date_for_details = None
+            st.rerun()
+
+    df_timesheets_tuple = tuple(map(tuple, df_timesheets.values)) if not df_timesheets.empty else tuple()
+    entries_this_month = get_timesheets_for_month_display(df_timesheets_tuple, current_month_view.year, current_month_view.month)
+
+    month_calendar = calendar.monthcalendar(current_month_view.year, current_month_view.month)
+    weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    
+    cols_weekdays = st.columns(7)
+    for i, day_name in enumerate(weekdays):
+        cols_weekdays[i].markdown(f"<div class='calendar-weekday'>{day_name}</div>", unsafe_allow_html=True)
+
+    for week in month_calendar:
+        cols_days = st.columns(7)
+        for i, day_num in enumerate(week):
+            with cols_days[i]:
+                if day_num == 0:
+                    st.markdown("<div class='calendar-day other-month'></div>", unsafe_allow_html=True)
+                else:
+                    current_day_date = date(current_month_view.year, current_month_view.month, day_num)
+                    
+                    button_label = f"{day_num}"
+                    if day_num in entries_this_month and entries_this_month[day_num]:
+                        entry_count = len(entries_this_month[day_num])
+                        total_hours_today = sum(e.get("duration_hours_decimal", 0) for e in entries_this_month[day_num])
+                        button_label += f"\n{entry_count} entr{'y' if entry_count == 1 else 'ies'}\n{total_hours_today:.2f}h"
+
+                    button_key = f"day_btn_{current_month_view.year}_{current_month_view.month}_{day_num}"
+                    if st.button(label=button_label, key=button_key, help=f"View entries for {current_day_date.strftime('%b %d')}", use_container_width=True):
+                        st.session_state.calendar_selected_date_for_details = current_day_date
+                        st.session_state.calendar_selected_day_entries = entries_this_month.get(day_num, [])
+                        st.rerun() 
+
+    if st.session_state.calendar_selected_day_entries is not None and st.session_state.calendar_selected_date_for_details:
+        st.markdown("---</h3><h3 class='subsection-header'>Entries for " + st.session_state.calendar_selected_date_for_details.strftime("%B %d, %Y") + "</h3>", unsafe_allow_html=True)
+        if not st.session_state.calendar_selected_day_entries:
+            st.info("No entries for this day.")
+        else:
+            for entry in st.session_state.calendar_selected_day_entries:
+                with st.container():
+                    st.markdown(f"""
+                    <div class='day-view-entry'>
+                        <div class='day-view-time'><strong>Time:</strong> {entry["time_range"]}</div>
+                        <div class='day-view-job'><strong>Job:</strong> {entry["job_name"]}</div>
+                        <div class='day-view-duration'><strong>Duration:</strong> {entry["duration_formatted"]}</div>
+                        <div class='day-view-notes'><em>Notes:</em> {entry["notes_preview"]}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    if st.button(f"View Full Timesheet #{entry['id']}", key=f"view_cal_entry_{entry['id']}", help="Navigate to Timesheets tab to view/edit this entry"):
+                        st.session_state.active_tab = "⏰ Timesheets" # Switch tab
+                        st.info(f"Navigating to Timesheets. Full details for ID {entry['id']} can be searched or managed there.")
+                        st.rerun()
+
 def display_clients_tab():
-    st.markdown("<h2 class=\'section-header\'>Client Management (Mock)</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 class='section-header'>Client Management (Mock)</h2>", unsafe_allow_html=True)
     if not st.session_state.clients:
         st.info("No client data available.")
         load_clients() # Ensure mock clients are loaded if empty
@@ -1712,15 +1837,41 @@ def display_clients_tab():
              return
 
     for client in st.session_state.clients:
-        with st.expander(f"{client["name"]} ({client["status"]})"):
-            st.markdown(f"**Contact:** {client["contact"]} ({client["email"]})")
-            st.markdown(f"**Industry:** {client["industry"]}")
-            st.markdown(f"**Total Hours Logged (Example):** {client["total_hours"]}")
-            st.markdown(f"**Notes:** {client["notes"]}")
+        with st.expander(f"{client['name']} ({client['status']})"):
+            st.markdown(f"**Contact:** {client['contact']} ({client['email']})")
+            st.markdown(f"**Industry:** {client['industry']}")
+            st.markdown(f"**Total Hours Logged (Example):** {client['total_hours']}")
+            st.markdown(f"**Notes:** {client['notes']}")
 
 def display_settings_tab():
-    st.markdown("<h2 class=\'section-header\'>Settings</h2>", unsafe_allow_html=True)
-    st.markdown("<h3 class=\'subsection-header\'>API Token</h3>", unsafe_allow_html=True)
+    st.markdown("<h2 class='section-header'>Settings</h2>", unsafe_allow_html=True)
+    
+    # API Connection Diagnostics Section
+    st.markdown("<h3 class='subsection-header'>API Connection Diagnostics</h3>", unsafe_allow_html=True)
+    if st.button("Run API Connection Diagnostics", key="run_diagnostics_btn"):
+        with st.spinner("Running API connection diagnostics..."):
+            diagnostics_results = run_api_diagnostics()
+        
+        st.markdown(f"**Connection Status:** {diagnostics_results['connection_status']}")
+        
+        if diagnostics_results['endpoints_tested']:
+            st.markdown("**Endpoints Tested:**")
+            for endpoint in diagnostics_results['endpoints_tested']:
+                status_color = "green" if endpoint.get('status') == "Success" else "red"
+                st.markdown(f"- {endpoint.get('endpoint')}: <span style='color:{status_color}'>{endpoint.get('status')}</span>", unsafe_allow_html=True)
+        
+        if diagnostics_results['issues_found']:
+            st.markdown("**Issues Found:**")
+            for issue in diagnostics_results['issues_found']:
+                st.markdown(f"- {issue}")
+        
+        if diagnostics_results['recommendations']:
+            st.markdown("**Recommendations:**")
+            for rec in diagnostics_results['recommendations']:
+                st.markdown(f"- {rec}")
+    
+    # API Token Section
+    st.markdown("<h3 class='subsection-header'>API Token</h3>", unsafe_allow_html=True)
     st.text_input("Current API Token (hidden)", value="*" * len(st.session_state.api_token) if st.session_state.api_token else "Not Set", type="password", disabled=True)
     new_token = st.text_input("Enter New API Token (Optional)", type="password", key="new_api_token_input")
     if st.button("Update Token & Re-authenticate", key="update_token_btn"):
@@ -1736,11 +1887,11 @@ def display_settings_tab():
                 st.success("API Token updated and re-authenticated successfully!")
             else:
                 st.error(f"Failed to re-authenticate with new token. {st.session_state.error_message or 'Check token and connection.'}")
-
         else:
             st.warning("Please enter a new API token to update.")
 
-    st.markdown("<h3 class=\'subsection-header\'>Date Range for Data</h3>", unsafe_allow_html=True)
+    # Date Range Section
+    st.markdown("<h3 class='subsection-header'>Date Range for Data</h3>", unsafe_allow_html=True)
     current_start_date, current_end_date = st.session_state.date_range
     new_date_range = st.date_input(
         "Select Date Range",
@@ -1759,7 +1910,8 @@ def display_settings_tab():
             get_timesheets_for_month_display.clear()
             st.rerun()
     
-    st.markdown("<h3 class=\'subsection-header\'>Cache Management</h3>", unsafe_allow_html=True)
+    # Cache Management Section
+    st.markdown("<h3 class='subsection-header'>Cache Management</h3>", unsafe_allow_html=True)
     if st.button("Clear All App Caches", key="clear_all_caches_btn"):
         fetch_users_data.clear()
         fetch_jobcodes_data.clear()
@@ -1828,7 +1980,7 @@ def main():
                 calculate_employee_performance_metrics.clear()
                 get_timesheets_for_month_display.clear()
                 st.success("Logged out successfully.")
-                st.experimental_rerun()
+                st.rerun()
 
             st.markdown("---")
             st.markdown("## Data Refresh")
@@ -1847,20 +1999,19 @@ def main():
                 st.success("All data refreshed!")
                 st.rerun()
             if st.session_state.last_refresh:
-                st.caption(f"Last refresh: {st.session_state.last_refresh.strftime("%Y-%m-%d %H:%M:%S")}")
+                st.caption(f"Last refresh: {st.session_state.last_refresh.strftime('%Y-%m-%d %H:%M:%S')}")
 
     # Display messages (success/error/warning) centrally
     if st.session_state.success_message:
-        st.markdown(f"<div class=\'success-message\'>{st.session_state.success_message}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='success-message'>{st.session_state.success_message}</div>", unsafe_allow_html=True)
         st.session_state.success_message = None 
     if st.session_state.error_message:
-        # Check if it\'s a warning-level message from retries
+        # Check if it's a warning-level message from retries
         if "Retrying" in st.session_state.error_message:
-            st.markdown(f"<div class=\'warning-message\'>{st.session_state.error_message}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='warning-message'>{st.session_state.error_message}</div>", unsafe_allow_html=True)
         else:
-            st.markdown(f"<div class=\'error-message\'>{st.session_state.error_message}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='error-message'>{st.session_state.error_message}</div>", unsafe_allow_html=True)
         # Do not clear error_message here, let it persist until next successful action or explicit clear
-        # st.session_state.error_message = None 
 
     if st.session_state.authenticated:
         df_for_tabs = get_timesheet_dataframe(tuple(st.session_state.timesheets))
@@ -1877,12 +2028,6 @@ def main():
         except ValueError:
             default_tab_index = 0
             st.session_state.active_tab = tab_titles[0]
-
-        # The st.tabs function does not have a direct way to set the default selected tab via an argument.
-        # It always defaults to the first tab upon initial rendering or full rerun if state isn\'t managed.
-        # To control the active tab, one would typically manage this with query parameters or more complex state handling.
-        # For this structure, we rely on Streamlit\'s default behavior for tabs.
-        # The st.session_state.active_tab is more for internal logic if we were to build custom tab-like navigation.
 
         tabs = st.tabs(tab_titles)
         
@@ -1906,8 +2051,8 @@ def main():
     elif st.session_state.error_message and "Authentication failed" in st.session_state.error_message:
         pass # Error is already displayed above
     
-    st.markdown("---_</h3_>")
-    st.markdown("<div class=\'footer\'>TSheets CRM Manager Pro © 2024-2025 | Enhanced Features by Manus</div>", unsafe_allow_html=True)
+    st.markdown("---</h3>")
+    st.markdown("<div class='footer'>TSheets CRM Manager Pro © 2024-2025 | Enhanced Features by Manus</div>", unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
