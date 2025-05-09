@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.colors import LinearSegmentedColormap
 import seaborn as sns
+import traceback
 
 # Set page configuration
 st.set_page_config(
@@ -682,6 +683,24 @@ st.markdown("""
         text-decoration: underline;
     }
     
+    /* Debug Info */
+    .debug-info {
+        background-color: #f8f9fa;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        padding: 15px;
+        margin-top: 15px;
+        font-family: monospace;
+        font-size: 0.9rem;
+        white-space: pre-wrap;
+        overflow-x: auto;
+    }
+    .debug-title {
+        font-weight: bold;
+        margin-bottom: 10px;
+        color: #333;
+    }
+    
     /* Responsive Adjustments */
     @media (max-width: 768px) {
         .client-stats {
@@ -782,11 +801,17 @@ def init_session_state():
         st.session_state.api_request_count = 0
     if "last_api_status" not in st.session_state:
         st.session_state.last_api_status = None
+    if "debug_mode" not in st.session_state:
+        st.session_state.debug_mode = False
+    if "api_logs" not in st.session_state:
+        st.session_state.api_logs = []
+    if "mock_data_mode" not in st.session_state:
+        st.session_state.mock_data_mode = False
 
 # Initialize session state
 init_session_state()
 
-# --- Enhanced API Request Function with Retries and Connection Diagnostics ---
+# --- Enhanced API Request Function with Retries, Connection Diagnostics, and Detailed Logging ---
 def make_api_request(endpoint, method="GET", params=None, data=None, timeout=30, max_retries=3, backoff_factor=0.5):
     """
     Make an API request to TSheets with retries, enhanced error handling, timeout, and connection diagnostics.
@@ -803,6 +828,10 @@ def make_api_request(endpoint, method="GET", params=None, data=None, timeout=30,
     Returns:
         dict or None: JSON response data or None if request failed
     """
+    # If mock data mode is enabled, return mock data instead of making real API calls
+    if st.session_state.mock_data_mode:
+        return get_mock_data(endpoint, method, params, data)
+    
     headers = {
         "Authorization": f"Bearer {st.session_state.api_token}",
         "Content-Type": "application/json"
@@ -823,8 +852,17 @@ def make_api_request(endpoint, method="GET", params=None, data=None, timeout=30,
         "params": params,
         "data_summary": str(data)[:100] + "..." if data and len(str(data)) > 100 else data,
         "attempts": [],
-        "final_status": None
+        "final_status": None,
+        "timestamp": datetime.now().isoformat()
     }
+
+    # Add to API logs
+    st.session_state.api_logs.append({
+        "timestamp": datetime.now().isoformat(),
+        "endpoint": endpoint,
+        "method": method,
+        "request_id": request_id
+    })
 
     for attempt in range(max_retries):
         attempt_start_time = time.time()
@@ -869,11 +907,22 @@ def make_api_request(endpoint, method="GET", params=None, data=None, timeout=30,
             
             # Handle response based on status code
             if response.status_code == 200:
-                debug_info["attempts"].append(attempt_info)
-                debug_info["final_status"] = "success"
-                st.session_state.debug_info = debug_info
-                st.session_state.last_api_status = "success"
-                return response.json()
+                try:
+                    json_response = response.json()
+                    debug_info["attempts"].append(attempt_info)
+                    debug_info["final_status"] = "success"
+                    st.session_state.debug_info = debug_info
+                    st.session_state.last_api_status = "success"
+                    return json_response
+                except json.JSONDecodeError as e:
+                    error_message = f"Failed to parse JSON response: {str(e)}"
+                    st.session_state.error_message = error_message
+                    attempt_info["error"] = error_message
+                    debug_info["attempts"].append(attempt_info)
+                    debug_info["final_status"] = "error"
+                    st.session_state.debug_info = debug_info
+                    st.session_state.last_api_status = "error"
+                    return None
             elif response.status_code == 204:  # Successful request with no content
                 debug_info["attempts"].append(attempt_info)
                 debug_info["final_status"] = "success"
@@ -937,6 +986,7 @@ def make_api_request(endpoint, method="GET", params=None, data=None, timeout=30,
             error_message = f"An unexpected error occurred: {str(e)}. Retrying ({attempt + 1}/{max_retries})..."
             st.session_state.error_message = error_message
             attempt_info["error"] = error_message
+            attempt_info["traceback"] = traceback.format_exc()
             debug_info["attempts"].append(attempt_info)
             time.sleep(backoff_factor * (2 ** attempt))
             continue
@@ -949,6 +999,159 @@ def make_api_request(endpoint, method="GET", params=None, data=None, timeout=30,
     st.session_state.debug_info = debug_info
     st.session_state.last_api_status = "failed"
     return None
+
+# --- Mock Data Functions ---
+def get_mock_data(endpoint, method, params=None, data=None):
+    """Return mock data for testing when API is unavailable"""
+    if endpoint == CURRENT_USER_ENDPOINT:
+        return {
+            "results": {
+                "users": {
+                    "123456": {
+                        "id": 123456,
+                        "first_name": "Test",
+                        "last_name": "User",
+                        "email": "test.user@example.com",
+                        "username": "testuser",
+                        "active": True,
+                        "employee_number": 1001,
+                        "company_id": 12345
+                    }
+                }
+            }
+        }
+    elif endpoint == USERS_ENDPOINT:
+        return {
+            "results": {
+                "users": {
+                    "123456": {
+                        "id": 123456,
+                        "first_name": "Test",
+                        "last_name": "User",
+                        "email": "test.user@example.com",
+                        "username": "testuser",
+                        "active": True
+                    },
+                    "123457": {
+                        "id": 123457,
+                        "first_name": "Another",
+                        "last_name": "User",
+                        "email": "another.user@example.com",
+                        "username": "anotheruser",
+                        "active": True
+                    }
+                }
+            }
+        }
+    elif endpoint == JOBCODES_ENDPOINT:
+        return {
+            "results": {
+                "jobcodes": {
+                    "1001": {
+                        "id": 1001,
+                        "name": "Development",
+                        "type": "regular",
+                        "active": True
+                    },
+                    "1002": {
+                        "id": 1002,
+                        "name": "Design",
+                        "type": "regular",
+                        "active": True
+                    },
+                    "1003": {
+                        "id": 1003,
+                        "name": "Meetings",
+                        "type": "regular",
+                        "active": True
+                    }
+                }
+            }
+        }
+    elif endpoint == TIMESHEETS_ENDPOINT:
+        if method == "GET":
+            # Generate mock timesheet data for the date range in params
+            mock_timesheets = {}
+            if params and "start_date" in params and "end_date" in params:
+                start_date = datetime.strptime(params["start_date"], "%Y-%m-%d")
+                end_date = datetime.strptime(params["end_date"], "%Y-%m-%d")
+                
+                # Generate a timesheet entry for each day in the range
+                current_date = start_date
+                timesheet_id = 10001
+                while current_date <= end_date:
+                    # Skip weekends
+                    if current_date.weekday() < 5:  # Monday to Friday
+                        # Create 1-3 entries per day
+                        for i in range(1, np.random.randint(1, 4)):
+                            duration = np.random.randint(3600, 28800)  # 1-8 hours in seconds
+                            jobcode_id = np.random.choice(["1001", "1002", "1003"])
+                            
+                            mock_timesheets[str(timesheet_id)] = {
+                                "id": timesheet_id,
+                                "user_id": 123456,
+                                "jobcode_id": jobcode_id,
+                                "date": current_date.strftime("%Y-%m-%d"),
+                                "duration": duration,
+                                "type": "manual",
+                                "notes": f"Mock timesheet entry for {current_date.strftime('%Y-%m-%d')}",
+                                "billable": jobcode_id in ["1001", "1002"]
+                            }
+                            timesheet_id += 1
+                    
+                    current_date += timedelta(days=1)
+            
+            return {
+                "results": {
+                    "timesheets": mock_timesheets
+                }
+            }
+        elif method == "POST":
+            # Simulate creating a new timesheet
+            return {
+                "results": {
+                    "timesheets": {
+                        "10099": {
+                            "id": 10099,
+                            "_status_code": 200,
+                            "_status_message": "Created"
+                        }
+                    }
+                }
+            }
+        elif method == "PUT":
+            # Simulate updating a timesheet
+            return {
+                "results": {
+                    "timesheets": {
+                        "10001": {
+                            "id": 10001,
+                            "_status_code": 200,
+                            "_status_message": "Updated"
+                        }
+                    }
+                }
+            }
+        elif method == "DELETE":
+            # Simulate deleting a timesheet
+            return {
+                "results": {
+                    "timesheets": {
+                        "10001": {
+                            "id": 10001,
+                            "_status_code": 200,
+                            "_status_message": "Deleted"
+                        }
+                    }
+                }
+            }
+    
+    # Default mock response
+    return {
+        "results": {
+            "message": "Mock data not implemented for this endpoint"
+        }
+    }
 
 # --- Helper Functions with Caching ---
 @st.cache_data(ttl=3600)  # Cache for 1 hour
@@ -1208,6 +1411,8 @@ def get_timesheet_dataframe(timesheets_list_tuple):
                 "on_the_clock": ts.get("on_the_clock", False)
             })
         except Exception as e:
+            if st.session_state.debug_mode:
+                st.warning(f"Error processing timesheet entry ID {ts.get('id', 'Unknown')}: {e}")
             print(f"Error processing timesheet entry ID {ts.get('id', 'Unknown')}: {e}")
             continue 
             
@@ -1298,6 +1503,7 @@ def calculate_employee_performance_metrics(df_tuple, standard_workday_hours=8.0,
         "job_code_distribution_percent": job_code_distribution_percent,
         "job_code_distribution_hours": job_code_distribution_hours,
         "avg_entries_per_day": f"{avg_entries_per_day:.2f}",
+        "avg_entries_per_week": f"{avg_entries_per_week:.2f}",  f"{avg_entries_per_day:.2f}",
         "avg_entries_per_week": f"{avg_entries_per_week:.2f}",
         "utilization_rate_vs_logged": round(utilization_rate_vs_logged, 2),
         "utilization_rate_vs_standard": round(utilization_rate_vs_standard, 2),
@@ -1846,6 +2052,40 @@ def display_clients_tab():
 def display_settings_tab():
     st.markdown("<h2 class='section-header'>Settings</h2>", unsafe_allow_html=True)
     
+    # Mock Data Mode Toggle
+    st.markdown("<h3 class='subsection-header'>API Connection Mode</h3>", unsafe_allow_html=True)
+    mock_data_mode = st.checkbox("Use Mock Data (No API Connection Required)", 
+                                value=st.session_state.mock_data_mode,
+                                help="Enable this to use mock data instead of connecting to the TSheets API")
+    if mock_data_mode != st.session_state.mock_data_mode:
+        st.session_state.mock_data_mode = mock_data_mode
+        if mock_data_mode:
+            st.success("Mock data mode enabled. The app will use sample data instead of connecting to the API.")
+            # Clear caches to ensure mock data is used
+            fetch_users_data.clear()
+            fetch_jobcodes_data.clear()
+            get_timesheet_dataframe.clear()
+            calculate_employee_performance_metrics.clear()
+            get_timesheets_for_month_display.clear()
+            # Force re-authentication to load mock data
+            st.session_state.authenticated = False
+            if st.session_state.api_token:  # Only try to authenticate if there's a token
+                authenticate()
+            st.rerun()
+        else:
+            st.warning("Mock data mode disabled. The app will attempt to connect to the TSheets API.")
+            # Clear caches to ensure real API data is used
+            fetch_users_data.clear()
+            fetch_jobcodes_data.clear()
+            get_timesheet_dataframe.clear()
+            calculate_employee_performance_metrics.clear()
+            get_timesheets_for_month_display.clear()
+            # Force re-authentication to load real data
+            st.session_state.authenticated = False
+            if st.session_state.api_token:  # Only try to authenticate if there's a token
+                authenticate()
+            st.rerun()
+    
     # API Connection Diagnostics Section
     st.markdown("<h3 class='subsection-header'>API Connection Diagnostics</h3>", unsafe_allow_html=True)
     if st.button("Run API Connection Diagnostics", key="run_diagnostics_btn"):
@@ -1869,6 +2109,22 @@ def display_settings_tab():
             st.markdown("**Recommendations:**")
             for rec in diagnostics_results['recommendations']:
                 st.markdown(f"- {rec}")
+    
+    # Debug Mode Toggle
+    st.markdown("<h3 class='subsection-header'>Debug Mode</h3>", unsafe_allow_html=True)
+    debug_mode = st.checkbox("Enable Debug Mode", 
+                            value=st.session_state.debug_mode,
+                            help="Show detailed debug information for troubleshooting")
+    if debug_mode != st.session_state.debug_mode:
+        st.session_state.debug_mode = debug_mode
+        st.rerun()
+    
+    if st.session_state.debug_mode and st.session_state.debug_info:
+        st.markdown("<div class='debug-title'>Last API Request Debug Info:</div>", unsafe_allow_html=True)
+        st.json(st.session_state.debug_info)
+        
+        st.markdown("<div class='debug-title'>Recent API Logs:</div>", unsafe_allow_html=True)
+        st.dataframe(pd.DataFrame(st.session_state.api_logs[-10:]), use_container_width=True)
     
     # API Token Section
     st.markdown("<h3 class='subsection-header'>API Token</h3>", unsafe_allow_html=True)
@@ -1899,7 +2155,7 @@ def display_settings_tab():
         max_value=datetime.now().date(),
         key="settings_date_range"
     )
-    if (new_date_range[0], new_date_range[1]) != (current_start_date, current_end_date):
+    if len(new_date_range) == 2 and (new_date_range[0], new_date_range[1]) != (current_start_date, current_end_date):
         st.session_state.date_range = (new_date_range[0], new_date_range[1])
         st.info("Date range updated. Refresh data or navigate to see changes.")
         if st.session_state.authenticated:
@@ -1939,6 +2195,23 @@ def main():
 
         st.markdown("## Authentication")
         if not st.session_state.authenticated:
+            # Option to use mock data without authentication
+            if not st.session_state.mock_data_mode:
+                mock_data_toggle = st.checkbox("Use Mock Data (No API Token Required)", 
+                                            value=False, 
+                                            help="Enable this to use sample data instead of connecting to the TSheets API")
+                if mock_data_toggle:
+                    st.session_state.mock_data_mode = True
+                    st.session_state.api_token = "mock_token"  # Set a dummy token
+                    with st.spinner("Loading mock data..."):
+                        if authenticate():
+                            st.success("Mock data mode enabled successfully!")
+                            st.rerun()
+                        else:
+                            st.error("Failed to initialize mock data mode.")
+                            st.session_state.mock_data_mode = False
+                            st.session_state.api_token = ""
+            
             api_token_input = st.text_input(
                 "Enter your TSheets API Token",
                 type="password",
@@ -1956,8 +2229,21 @@ def main():
                             # Error message is set in authenticate() or make_api_request()
                             msg = st.session_state.error_message or 'Authentication failed. Check token and connection.'
                             st.error(msg)
+                            
+                            # Offer mock data mode if authentication fails
+                            if st.button("Use Mock Data Instead", key="use_mock_data_btn"):
+                                st.session_state.mock_data_mode = True
+                                st.session_state.api_token = "mock_token"  # Set a dummy token
+                                with st.spinner("Loading mock data..."):
+                                    if authenticate():
+                                        st.success("Mock data mode enabled successfully!")
+                                        st.rerun()
+                                    else:
+                                        st.error("Failed to initialize mock data mode.")
+                                        st.session_state.mock_data_mode = False
+                                        st.session_state.api_token = ""
                 else:
-                    st.warning("Please enter an API token.")
+                    st.warning("Please enter an API token or enable mock data mode.")
         else:
             if st.session_state.current_user:
                 st.markdown(
@@ -1965,6 +2251,10 @@ def main():
                     f"{st.session_state.current_user.get('last_name', '')}**"
                 )
                 st.caption(f"User ID: {st.session_state.current_user.get('id')}")
+                
+                if st.session_state.mock_data_mode:
+                    st.info("Using mock data mode - no actual API connection")
+                
             if st.button("Logout", key="logout_button_sidebar", use_container_width=True):
                 st.session_state.authenticated = False
                 st.session_state.api_token = ""
@@ -1973,6 +2263,7 @@ def main():
                 st.session_state.users = {}
                 st.session_state.jobcodes = {}
                 st.session_state.clients = []
+                st.session_state.mock_data_mode = False
                 # Clear all caches on logout
                 fetch_users_data.clear()
                 fetch_jobcodes_data.clear()
@@ -2048,6 +2339,19 @@ def main():
 
     elif not st.session_state.api_token and not st.session_state.error_message:
         st.info("Please enter your TSheets API Token in the sidebar to login and use the application.")
+        
+        # Option to use mock data from the main screen
+        if st.button("Use Mock Data Instead (No API Token Required)", key="use_mock_data_main"):
+            st.session_state.mock_data_mode = True
+            st.session_state.api_token = "mock_token"  # Set a dummy token
+            with st.spinner("Loading mock data..."):
+                if authenticate():
+                    st.success("Mock data mode enabled successfully!")
+                    st.rerun()
+                else:
+                    st.error("Failed to initialize mock data mode.")
+                    st.session_state.mock_data_mode = False
+                    st.session_state.api_token = ""
     elif st.session_state.error_message and "Authentication failed" in st.session_state.error_message:
         pass # Error is already displayed above
     
